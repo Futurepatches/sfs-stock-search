@@ -3,143 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STANDARD FLUID SYSTEMS | Stock Search</title>
+    <title>STANDARD FLUID SYSTEMS | Inventory Portal</title>
     <style>
         :root {
-            --logo-blue: #1E4D9C;
-            --logo-red: #E73B32;
-            --bg-color: #f8f9fa;
+            --brand-blue: #1E4D9C;
+            --brand-red: #E73B32;
+            --bg-gray: #f4f7f9;
         }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; padding: 20px; background-color: var(--bg-color); }
-        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); border-top: 5px solid var(--logo-blue); }
-        .header-container { text-align: center; margin-bottom: 25px; }
-        .company-logo { max-width: 280px; height: auto; margin-bottom: 10px; }
-        .portal-title { color: var(--logo-red); font-weight: bold; font-size: 22px; text-transform: uppercase; letter-spacing: 1px; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg-gray); margin: 0; padding: 20px; }
+        .main-card { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); border-top: 6px solid var(--brand-blue); }
+        .header { text-align: center; margin-bottom: 30px; }
+        .logo-placeholder { max-width: 280px; margin-bottom: 10px; }
+        .title { color: var(--brand-red); font-weight: bold; font-size: 22px; text-transform: uppercase; letter-spacing: 1px; }
         
-        .search-area { background: #eee; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        /* Search Box */
+        .search-section { margin-bottom: 25px; text-align: center; }
         input#searchInput { 
-            width: 100%; padding: 15px; font-size: 18px; border: 2px solid #ccc; 
-            border-radius: 6px; outline: none; transition: 0.3s; box-sizing: border-box;
+            width: 100%; padding: 15px; font-size: 18px; border: 2px solid #ddd; 
+            border-radius: 8px; outline: none; transition: 0.3s; box-sizing: border-box;
         }
-        input#searchInput:focus { border-color: var(--logo-blue); background: #fff; }
+        input#searchInput:focus { border-color: var(--brand-blue); background: #fff; }
         
-        .table-wrapper { overflow-x: auto; display: none; margin-top: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        /* Table Styling */
+        .results-container { display: none; margin-top: 20px; border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
         table { width: 100%; border-collapse: collapse; }
-        th { background: var(--logo-blue); color: white; padding: 15px; text-align: left; font-size: 14px; position: sticky; top: 0; }
-        td { padding: 12px 15px; border-bottom: 1px solid #eee; font-size: 15px; color: #444; }
-        tr:hover { background: #f1f7ff; }
+        th { background: var(--brand-blue); color: white; padding: 15px; text-align: left; font-size: 14px; }
+        td { padding: 12px 15px; border-bottom: 1px solid #f0f0f0; font-size: 15px; color: #333; }
+        tr:hover { background: #f9fbff; }
         
-        /* Stock Quantity Color */
-        .stock-val { font-weight: bold; color: #27ae60; font-size: 16px; }
-        .out-of-stock { color: #e74c3c !important; }
+        /* Stock Logic */
+        .qty { font-weight: bold; color: #27ae60; text-align: center; }
+        .out { color: var(--brand-red) !important; }
 
-        .status-bar { text-align: center; padding: 10px; font-size: 14px; color: #666; }
-        .error-box { background: #fff1f0; border: 1px solid #ffa39e; padding: 15px; border-radius: 5px; display: none; margin-bottom: 15px; }
+        .status { text-align: center; padding: 10px; font-size: 13px; color: #666; }
+        .error-alert { display: none; background: #fff1f0; border: 1px solid #ffa39e; padding: 15px; border-radius: 6px; color: var(--brand-red); margin-bottom: 20px; text-align: center; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="header-container">
-        <img src="logo.png" alt="STANDARD FLUID SYSTEMS" class="company-logo" onerror="this.src='https://via.placeholder.com/300x80?text=STANDARD+FLUID+SYSTEMS'">
-        <div class="portal-title">Inventory Stock Search</div>
+<div class="main-card">
+    <div class="header">
+        <img src="logo.png" alt="STANDARD FLUID SYSTEMS" class="logo-placeholder" onerror="this.style.display='none'">
+        <div class="title">Inventory Stock Search</div>
     </div>
 
-    <div id="errorBox" class="error-box">
-        <strong style="color:var(--logo-red)">Sync Error:</strong> Your browser is blocking the connection. 
-        <br>Please try opening this file in <strong>Microsoft Edge</strong> or <strong>Firefox</strong>.
+    <div id="apiError" class="error-alert">
+        <strong>Database Offline:</strong> Connection could not be established.
     </div>
 
-    <div class="search-area">
-        <input type="text" id="searchInput" onkeyup="filterStock()" placeholder="Enter Part Number or Description..." disabled>
-        <div id="loadingText" class="status-bar">Connecting to Google Sheets...</div>
+    <div class="search-section">
+        <input type="text" id="searchInput" onkeyup="searchInventory()" placeholder="Search Part Number or Model..." disabled>
+        <div id="loadStatus" class="status">Connecting to Google Sheets...</div>
     </div>
 
-    <div id="tableWrapper" class="table-wrapper">
+    <div id="resultsTable" class="results-container">
         <table>
             <thead>
                 <tr>
-                    <th width="30%">Part Number</th>
-                    <th width="50%">Description</th>
-                    <th width="20%">Total Stock</th>
+                    <th width="35%">Part Number</th>
+                    <th width="45%">Description</th>
+                    <th width="20%" style="text-align:center">Available Stock</th>
                 </tr>
             </thead>
-            <tbody id="tableBody"></tbody>
+            <tbody id="tableData"></tbody>
         </table>
     </div>
 </div>
 
 <script>
-    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?gid=1719776219&single=true&output=csv';
+    // Your verified Google Web App URL
+    const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwv_wv283PnwYh3CnhdLcLfznw7QneStze1RWUONVwD2Yd_c6y3Ux1cFbQhNswb7fEI/exec';
     
-    // Multiple proxies for redundancy
-    const proxies = [
-        'https://api.allorigins.win/raw?url=',
-        'https://corsproxy.io/?'
-    ];
+    let stockData = [];
 
-    let inventoryData = [];
-
-    async function loadData(proxyIndex = 0) {
-        if (proxyIndex >= proxies.length) {
-            document.getElementById('loadingText').style.display = 'none';
-            document.getElementById('errorBox').style.display = 'block';
-            return;
-        }
+    // Fetching logic
+    async function initSystem() {
+        const status = document.getElementById('loadStatus');
+        const searchInput = document.getElementById('searchInput');
+        const errorBox = document.getElementById('apiError');
 
         try {
-            const response = await fetch(proxies[proxyIndex] + encodeURIComponent(csvUrl));
+            const response = await fetch(API_ENDPOINT);
             if (!response.ok) throw new Error();
             
-            const data = await response.text();
-            processData(data);
+            const data = await response.json();
+            
+            // Assuming Column A (0) is Part, Column C (2) is Desc, Column G (6) is Stock
+            stockData = data.slice(1)
+                .filter(row => row[0] && row[0].toString().trim() !== "")
+                .map(row => ({
+                    part: row[0],
+                    desc: row[2] || '---',
+                    qty: row[6] || 0
+                }));
+
+            status.innerHTML = "✅ System Online | Data Ready";
+            status.style.color = "#27ae60";
+            searchInput.disabled = false;
+            searchInput.focus();
+
         } catch (e) {
-            console.log(`Proxy ${proxyIndex} failed, trying next...`);
-            loadData(proxyIndex + 1);
+            console.error(e);
+            status.innerHTML = "❌ System Offline";
+            errorBox.style.display = 'block';
         }
     }
 
-    function processData(csvText) {
-        const rows = csvText.split('\n').map(row => 
-            row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/^"|"$/g, '').trim())
-        );
+    // Search logic
+    function searchInventory() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const results = document.getElementById('resultsTable');
+        const tbody = document.getElementById('tableData');
 
-        inventoryData = rows.slice(1)
-            .filter(row => row.length >= 7 && row[0] !== "")
-            .map(row => [row[0], row[2], row[6]]);
-
-        document.getElementById('loadingText').innerHTML = "✅ System Online";
-        document.getElementById('searchInput').disabled = false;
-        document.getElementById('searchInput').focus();
-    }
-
-    function filterStock() {
-        const term = document.getElementById('searchInput').value.toLowerCase();
-        const wrapper = document.getElementById('tableWrapper');
-        const tbody = document.getElementById('tableBody');
-
-        if (term.length === 0) {
-            wrapper.style.display = 'none';
+        if (query.trim() === "") {
+            results.style.display = 'none';
             return;
         }
 
-        const filtered = inventoryData.filter(row => 
-            row[0].toLowerCase().includes(term) || row[1].toLowerCase().includes(term)
+        const filtered = stockData.filter(item => 
+            item.part.toString().toLowerCase().includes(query) || 
+            item.desc.toString().toLowerCase().includes(query)
         );
 
         if (filtered.length > 0) {
-            tbody.innerHTML = filtered.map(row => {
-                const stockCount = parseFloat(row[2]) || 0;
-                const stockClass = stockCount <= 0 ? 'stock-val out-of-stock' : 'stock-val';
-                return `<tr><td>${row[0]}</td><td>${row[1]}</td><td class="${stockClass}">${row[2]}</td></tr>`;
+            results.style.display = 'block';
+            tbody.innerHTML = filtered.map(item => {
+                const stockVal = parseFloat(item.qty) || 0;
+                const isOut = stockVal <= 0;
+                return `
+                    <tr>
+                        <td><strong>${item.part}</strong></td>
+                        <td>${item.desc}</td>
+                        <td class="qty ${isOut ? 'out' : ''}">${item.qty}</td>
+                    </tr>`;
             }).join('');
-            wrapper.style.display = 'block';
         } else {
-            wrapper.style.display = 'none';
+            results.style.display = 'none';
         }
     }
 
-    loadData();
+    // Start
+    window.onload = initSystem;
 </script>
 
 </body>
