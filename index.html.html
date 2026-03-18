@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STANDARD FLUID SYSTEMS | Stock Search</title>
+    <style>
+        :root {
+            --logo-blue: #1E4D9C;
+            --logo-red: #E73B32;
+            --bg-color: #f8f9fa;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; padding: 20px; background-color: var(--bg-color); }
+        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); border-top: 5px solid var(--logo-blue); }
+        .header-container { text-align: center; margin-bottom: 25px; }
+        .company-logo { max-width: 280px; height: auto; margin-bottom: 10px; }
+        .portal-title { color: var(--logo-red); font-weight: bold; font-size: 22px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .search-area { background: #eee; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        input#searchInput { 
+            width: 100%; padding: 15px; font-size: 18px; border: 2px solid #ccc; 
+            border-radius: 6px; outline: none; transition: 0.3s; box-sizing: border-box;
+        }
+        input#searchInput:focus { border-color: var(--logo-blue); background: #fff; }
+        
+        .table-wrapper { overflow-x: auto; display: none; margin-top: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: var(--logo-blue); color: white; padding: 15px; text-align: left; font-size: 14px; position: sticky; top: 0; }
+        td { padding: 12px 15px; border-bottom: 1px solid #eee; font-size: 15px; color: #444; }
+        tr:hover { background: #f1f7ff; }
+        
+        /* Stock Quantity Color */
+        .stock-val { font-weight: bold; color: #27ae60; font-size: 16px; }
+        .out-of-stock { color: #e74c3c !important; }
+
+        .status-bar { text-align: center; padding: 10px; font-size: 14px; color: #666; }
+        .error-box { background: #fff1f0; border: 1px solid #ffa39e; padding: 15px; border-radius: 5px; display: none; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-container">
+        <img src="logo.png" alt="STANDARD FLUID SYSTEMS" class="company-logo" onerror="this.src='https://via.placeholder.com/300x80?text=STANDARD+FLUID+SYSTEMS'">
+        <div class="portal-title">Inventory Stock Search</div>
+    </div>
+
+    <div id="errorBox" class="error-box">
+        <strong style="color:var(--logo-red)">Sync Error:</strong> Your browser is blocking the connection. 
+        <br>Please try opening this file in <strong>Microsoft Edge</strong> or <strong>Firefox</strong>.
+    </div>
+
+    <div class="search-area">
+        <input type="text" id="searchInput" onkeyup="filterStock()" placeholder="Enter Part Number or Description..." disabled>
+        <div id="loadingText" class="status-bar">Connecting to Google Sheets...</div>
+    </div>
+
+    <div id="tableWrapper" class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th width="30%">Part Number</th>
+                    <th width="50%">Description</th>
+                    <th width="20%">Total Stock</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?gid=1719776219&single=true&output=csv';
+    
+    // Multiple proxies for redundancy
+    const proxies = [
+        'https://api.allorigins.win/raw?url=',
+        'https://corsproxy.io/?'
+    ];
+
+    let inventoryData = [];
+
+    async function loadData(proxyIndex = 0) {
+        if (proxyIndex >= proxies.length) {
+            document.getElementById('loadingText').style.display = 'none';
+            document.getElementById('errorBox').style.display = 'block';
+            return;
+        }
+
+        try {
+            const response = await fetch(proxies[proxyIndex] + encodeURIComponent(csvUrl));
+            if (!response.ok) throw new Error();
+            
+            const data = await response.text();
+            processData(data);
+        } catch (e) {
+            console.log(`Proxy ${proxyIndex} failed, trying next...`);
+            loadData(proxyIndex + 1);
+        }
+    }
+
+    function processData(csvText) {
+        const rows = csvText.split('\n').map(row => 
+            row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(cell => cell.replace(/^"|"$/g, '').trim())
+        );
+
+        inventoryData = rows.slice(1)
+            .filter(row => row.length >= 7 && row[0] !== "")
+            .map(row => [row[0], row[2], row[6]]);
+
+        document.getElementById('loadingText').innerHTML = "✅ System Online";
+        document.getElementById('searchInput').disabled = false;
+        document.getElementById('searchInput').focus();
+    }
+
+    function filterStock() {
+        const term = document.getElementById('searchInput').value.toLowerCase();
+        const wrapper = document.getElementById('tableWrapper');
+        const tbody = document.getElementById('tableBody');
+
+        if (term.length === 0) {
+            wrapper.style.display = 'none';
+            return;
+        }
+
+        const filtered = inventoryData.filter(row => 
+            row[0].toLowerCase().includes(term) || row[1].toLowerCase().includes(term)
+        );
+
+        if (filtered.length > 0) {
+            tbody.innerHTML = filtered.map(row => {
+                const stockCount = parseFloat(row[2]) || 0;
+                const stockClass = stockCount <= 0 ? 'stock-val out-of-stock' : 'stock-val';
+                return `<tr><td>${row[0]}</td><td>${row[1]}</td><td class="${stockClass}">${row[2]}</td></tr>`;
+            }).join('');
+            wrapper.style.display = 'block';
+        } else {
+            wrapper.style.display = 'none';
+        }
+    }
+
+    loadData();
+</script>
+
+</body>
+</html>
