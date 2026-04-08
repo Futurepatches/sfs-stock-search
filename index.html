@@ -34,9 +34,9 @@ body {
     box-shadow: 0 10px 25px rgba(0,0,0,0.05);
     border-top: 8px solid var(--primary);
 }
-.header { text-align: center; margin-bottom: 30px; }
-.header h1 { color: var(--primary); margin: 10px 0 5px; font-size: 26px; text-transform: uppercase; letter-spacing: 1px; }
-.header p { color: #64748B; margin: 0; font-size: 14px; font-weight: 600; }
+.header { text-align:center; margin-bottom:30px; }
+.header h1 { color: var(--primary); margin: 10px 0 5px; font-size:26px; text-transform:uppercase; letter-spacing:1px; }
+.header p { color: #64748B; margin:0; font-size:14px; font-weight:600; }
 .status-bar { text-align:center; margin-bottom:25px; padding:12px; border-radius:8px; background:#f1f5f9; font-size:14px; font-weight:600; transition:all 0.3s ease; }
 .online { color:#10B981 !important; background:#ecfdf5 !important; border:1px solid #10B981; }
 .offline { color:var(--accent) !important; background:#fef2f2 !important; border:1px solid var(--accent); }
@@ -53,7 +53,7 @@ tr:hover { background-color:#f9fbff; }
 .out-of-stock { background:#FEE2E2; color:#991B1B; }
 .loader { border:3px solid #cbd5e1; border-top:3px solid var(--primary); border-radius:50%; width:18px; height:18px; animation:spin 1s linear infinite; display:inline-block; vertical-align:middle; margin-right:10px; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-@media (max-width: 600px) {
+@media (max-width:600px) {
     .container { padding:15px; }
     td, th { padding:12px 10px; font-size:13px; }
     #searchInput { padding:15px; font-size:16px; }
@@ -92,7 +92,8 @@ tr:hover { background-color:#f9fbff; }
 </div>
 
 <script>
-const SCRIPT_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?output=csv';
+const SCRIPT_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?output=csv&_=' + new Date().getTime();
+
 let inventoryData = [];
 
 async function initSystem() {
@@ -103,15 +104,12 @@ async function initSystem() {
 
     try {
         const response = await fetch(SCRIPT_URL);
-        if (!response.ok) throw new Error('HTTP Error');
+        if(!response.ok) throw new Error('HTTP Error');
 
         const csvText = await response.text();
-
-        // PapaParse to correctly parse CSV
         const parsed = Papa.parse(csvText.trim(), { header: false });
         const rows = parsed.data;
 
-        // Map Columns: Col A=Part, Col C=Description, Col G=Stock
         inventoryData = rows.slice(1).map(row => ({
             part: row[0] ? row[0].toString().trim() : "",
             desc: row[2] ? row[2].toString().trim() : "---",
@@ -125,7 +123,7 @@ async function initSystem() {
         searchInput.placeholder = "Enter part number to search...";
         searchInput.focus();
 
-    } catch (error) {
+    } catch(error) {
         console.error('System Error:', error);
         loader.style.display = 'none';
         statusText.innerHTML = "❌ Connection Failed. Use Ctrl+F5 to Refresh.";
@@ -138,33 +136,33 @@ function searchStock() {
     const container = document.getElementById('tableContainer');
     const body = document.getElementById('inventoryBody');
 
-    if (term === "") { container.style.display = 'none'; return; }
+    if(term === "") { container.style.display='none'; return; }
 
     const matches = inventoryData.filter(item => 
         item.part.toLowerCase().includes(term) || 
         item.desc.toLowerCase().includes(term)
     );
 
-    if (matches.length > 0) {
-        container.style.display = 'block';
+    if(matches.length > 0) {
+        container.style.display='block';
         body.innerHTML = matches.map(item => {
-            const stockVal = parseFloat(item.stock) || 0;
+            const stockVal = parseFloat(item.stock)||0;
             const isOut = stockVal <= 0;
             return `<tr>
                 <td class="part-no">${item.part}</td>
                 <td>${item.desc}</td>
                 <td style="text-align:center">
-                    <span class="stock-badge ${isOut ? 'out-of-stock' : ''}">${item.stock}</span>
+                    <span class="stock-badge ${isOut?'out-of-stock':''}">${item.stock}</span>
                 </td>
             </tr>`;
         }).join('');
     } else {
-        container.style.display = 'block';
+        container.style.display='block';
         body.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:30px; color:#64748B;">No matching stock items found.</td></tr>';
     }
 }
 
-// Auto refresh every 1 minute
+// Refresh every 60 seconds to fetch latest stock
 setInterval(initSystem, 60000);
 
 document.getElementById('searchInput').addEventListener('input', searchStock);
