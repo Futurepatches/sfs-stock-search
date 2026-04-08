@@ -74,7 +74,7 @@ tr:hover { background-color:#f9fbff; }
     </div>
 
     <div class="search-wrapper">
-        <input type="text" id="searchInput" placeholder="Search Part No (e.g. SY5120)..." disabled>
+        <input type="text" id="searchInput" placeholder="Search Part No or Description..." disabled>
     </div>
 
     <div class="table-container" id="tableContainer">
@@ -92,7 +92,8 @@ tr:hover { background-color:#f9fbff; }
 </div>
 
 <script>
-const SCRIPT_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?output=csv&_=' + new Date().getTime();
+// LIVE Google Sheet CSV URL with cache bypass
+const SCRIPT_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?gid=1719776219&single=true&output=csv&_=' + new Date().getTime();
 
 let inventoryData = [];
 
@@ -104,12 +105,13 @@ async function initSystem() {
 
     try {
         const response = await fetch(SCRIPT_URL);
-        if(!response.ok) throw new Error('HTTP Error');
+        if (!response.ok) throw new Error('HTTP Error');
 
         const csvText = await response.text();
         const parsed = Papa.parse(csvText.trim(), { header: false });
         const rows = parsed.data;
 
+        // Map: Col A=Part, Col C=Desc, Col G=Stock
         inventoryData = rows.slice(1).map(row => ({
             part: row[0] ? row[0].toString().trim() : "",
             desc: row[2] ? row[2].toString().trim() : "---",
@@ -120,13 +122,13 @@ async function initSystem() {
         statusText.innerHTML = "✅ System Online | Inventory Ready";
         statusBar.classList.add('online');
         searchInput.disabled = false;
-        searchInput.placeholder = "Enter part number to search...";
+        searchInput.placeholder = "Enter part to search...";
         searchInput.focus();
 
-    } catch(error) {
+    } catch (error) {
         console.error('System Error:', error);
         loader.style.display = 'none';
-        statusText.innerHTML = "❌ Connection Failed. Use Ctrl+F5 to Refresh.";
+        statusText.innerHTML = "❌ Connection Failed. Refresh page.";
         statusBar.classList.add('offline');
     }
 }
@@ -136,33 +138,36 @@ function searchStock() {
     const container = document.getElementById('tableContainer');
     const body = document.getElementById('inventoryBody');
 
-    if(term === "") { container.style.display='none'; return; }
+    if (term === "") { 
+        container.style.display = 'none'; 
+        return; 
+    }
 
     const matches = inventoryData.filter(item => 
         item.part.toLowerCase().includes(term) || 
         item.desc.toLowerCase().includes(term)
     );
 
-    if(matches.length > 0) {
-        container.style.display='block';
+    if (matches.length > 0) {
+        container.style.display = 'block';
         body.innerHTML = matches.map(item => {
-            const stockVal = parseFloat(item.stock)||0;
+            const stockVal = parseFloat(item.stock) || 0;
             const isOut = stockVal <= 0;
             return `<tr>
                 <td class="part-no">${item.part}</td>
                 <td>${item.desc}</td>
                 <td style="text-align:center">
-                    <span class="stock-badge ${isOut?'out-of-stock':''}">${item.stock}</span>
+                    <span class="stock-badge ${isOut ? 'out-of-stock' : ''}">${item.stock}</span>
                 </td>
             </tr>`;
         }).join('');
     } else {
-        container.style.display='block';
-        body.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:30px; color:#64748B;">No matching stock items found.</td></tr>';
+        container.style.display = 'block';
+        body.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:30px; color:#64748B;">No matching stock items.</td></tr>';
     }
 }
 
-// Refresh every 60 seconds to fetch latest stock
+// Refresh every 60 seconds
 setInterval(initSystem, 60000);
 
 document.getElementById('searchInput').addEventListener('input', searchStock);
