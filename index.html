@@ -1,86 +1,175 @@
-<script>
-    // NEW Google Sheet CSV URL
-    const SCRIPT_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?output=csv';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SFS | Inventory Stock Search</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --primary: #1E4D9C;
+    --accent: #E73B32;
+    --bg: #F8FAFC;
+    --text: #1E293B;
+}
 
-    let inventoryData = [];
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+}
 
-    // System Initialization
-    async function initSystem() {
-        const statusText = document.getElementById('statusText');
-        const statusBar = document.getElementById('statusBar');
-        const loader = document.getElementById('loader');
-        const searchInput = document.getElementById('searchInput');
+.container {
+    width: 100%;
+    max-width: 850px;
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    border-top: 8px solid var(--primary);
+}
 
-        try {
-            // Fetching data from Google Sheets
-            const response = await fetch(SCRIPT_URL);
-            if (!response.ok) throw new Error('HTTP Error');
+.header { text-align: center; margin-bottom: 30px; }
+.header h1 { color: var(--primary); margin: 10px 0 5px; font-size: 26px; text-transform: uppercase; letter-spacing: 1px; }
+.header p { color: #64748B; margin: 0; font-size: 14px; font-weight: 600; }
 
-            const data = await response.text();
-            const rows = data.split("\n").map(row => row.split(","));
-            
-            // Mapping: Col A (0) = Part, Col C (2) = Desc, Col G (6) = Stock
-            inventoryData = rows.slice(1).map(row => ({
-                part: row[0] ? row[0].toString().trim() : "",
-                desc: row[2] ? row[2].toString().trim() : "---",
-                stock: (row[6] !== "" && row[6] !== undefined) ? row[6] : 0
-            })).filter(item => item.part !== "");
+.status-bar { text-align:center; margin-bottom:25px; padding:12px; border-radius:8px; background:#f1f5f9; font-size:14px; font-weight:600; transition:all 0.3s ease; }
+.online { color:#10B981 !important; background:#ecfdf5 !important; border:1px solid #10B981; }
+.offline { color:var(--accent) !important; background:#fef2f2 !important; border:1px solid var(--accent); }
 
-            // UI Success State
-            loader.style.display = 'none';
-            statusText.innerHTML = "✅ System Online | Inventory Ready";
-            statusBar.classList.add('online');
-            searchInput.disabled = false;
-            searchInput.placeholder = "Enter part number to search...";
-            searchInput.focus();
+.search-wrapper { position:relative; margin-bottom:25px; }
+#searchInput { width:100%; padding:18px 25px; font-size:18px; border:2px solid #E2E8F0; border-radius:12px; box-sizing:border-box; outline:none; box-shadow:0 2px 4px rgba(0,0,0,0.02); transition:all 0.3s ease; }
+#searchInput:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(30,77,156,0.1); }
 
-        } catch (error) {
-            console.error('System Error:', error);
-            loader.style.display = 'none';
-            statusText.innerHTML = "❌ Connection Failed. Use Ctrl+F5 to Refresh.";
-            statusBar.classList.add('offline');
-        }
-    }
+.table-container { overflow-x:auto; display:none; border-radius:12px; border:1px solid #E2E8F0; margin-top:10px; }
+table { width:100%; border-collapse:collapse; text-align:left; }
+th { background:#F8FAFC; padding:15px; font-size:12px; text-transform:uppercase; letter-spacing:0.05em; color:#64748B; border-bottom:2px solid #E2E8F0; }
+td { padding:15px; border-bottom:1px solid #F1F5F9; font-size:15px; }
+tr:hover { background-color:#f9fbff; }
 
-    // Search Logic
-    function searchStock() {
-        const term = document.getElementById('searchInput').value.toLowerCase().trim();
-        const container = document.getElementById('tableContainer');
-        const body = document.getElementById('inventoryBody');
+.part-no { font-weight:700; color: var(--primary); }
+.stock-badge { padding:6px 12px; border-radius:8px; font-weight:700; font-size:14px; background:#DCFCE7; color:#166534; display:inline-block; min-width:45px; text-align:center; }
+.out-of-stock { background:#FEE2E2; color:#991B1B; }
 
-        if (term === "") {
-            container.style.display = 'none';
-            return;
-        }
+.loader { border:3px solid #cbd5e1; border-top:3px solid var(--primary); border-radius:50%; width:18px; height:18px; animation:spin 1s linear infinite; display:inline-block; vertical-align:middle; margin-right:10px; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        const matches = inventoryData.filter(item => 
-            item.part.toLowerCase().includes(term) || 
-            item.desc.toLowerCase().includes(term)
-        );
+@media (max-width: 600px) {
+    .container { padding:15px; }
+    td, th { padding:12px 10px; font-size:13px; }
+    #searchInput { padding:15px; font-size:16px; }
+}
+</style>
+</head>
+<body>
 
-        if (matches.length > 0) {
-            container.style.display = 'block';
-            body.innerHTML = matches.map(item => {
-                const stockVal = parseFloat(item.stock) || 0;
-                const isOut = stockVal <= 0;
-                return `
+<div class="container">
+    <div class="header">
+        <h1>Standard Fluid Systems</h1>
+        <p>Live Inventory Search Portal</p>
+    </div>
+
+    <div class="status-bar" id="statusBar">
+        <div class="loader" id="loader"></div>
+        <span id="statusText">Connecting to Secure Database...</span>
+    </div>
+
+    <div class="search-wrapper">
+        <input type="text" id="searchInput" placeholder="Search Part No (e.g. SY5120)..." disabled>
+    </div>
+
+    <div class="table-container" id="tableContainer">
+        <table>
+            <thead>
                 <tr>
-                    <td class="part-no">${item.part}</td>
-                    <td>${item.desc}</td>
-                    <td style="text-align:center">
-                        <span class="stock-badge ${isOut ? 'out-of-stock' : ''}">
-                            ${item.stock}
-                        </span>
-                    </td>
-                </tr>`;
-            }).join('');
-        } else {
-            container.style.display = 'block';
-            body.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:30px; color:#64748B;">No matching stock items found.</td></tr>';
-        }
-    }
+                    <th width="30%">Part Number</th>
+                    <th width="50%">Description</th>
+                    <th width="20%" style="text-align:center">Stock</th>
+                </tr>
+            </thead>
+            <tbody id="inventoryBody"></tbody>
+        </table>
+    </div>
+</div>
 
-    // Event Listeners
-    document.getElementById('searchInput').addEventListener('input', searchStock);
-    window.onload = initSystem;
+<script>
+const SCRIPT_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?output=csv';
+let inventoryData = [];
+
+async function initSystem() {
+    const statusText = document.getElementById('statusText');
+    const statusBar = document.getElementById('statusBar');
+    const loader = document.getElementById('loader');
+    const searchInput = document.getElementById('searchInput');
+
+    try {
+        const response = await fetch(SCRIPT_URL);
+        if (!response.ok) throw new Error('HTTP Error');
+
+        const data = await response.text();
+        const rows = data.split("\n").map(row => row.split(","));
+        inventoryData = rows.slice(1).map(row => ({
+            part: row[0] ? row[0].toString().trim() : "",
+            desc: row[2] ? row[2].toString().trim() : "---",
+            stock: (row[6] !== "" && row[6] !== undefined) ? row[6] : 0
+        })).filter(item => item.part !== "");
+
+        loader.style.display = 'none';
+        statusText.innerHTML = "✅ System Online | Inventory Ready";
+        statusBar.classList.add('online');
+        searchInput.disabled = false;
+        searchInput.placeholder = "Enter part number to search...";
+        searchInput.focus();
+
+    } catch (error) {
+        console.error('System Error:', error);
+        loader.style.display = 'none';
+        statusText.innerHTML = "❌ Connection Failed. Use Ctrl+F5 to Refresh.";
+        statusBar.classList.add('offline');
+    }
+}
+
+function searchStock() {
+    const term = document.getElementById('searchInput').value.toLowerCase().trim();
+    const container = document.getElementById('tableContainer');
+    const body = document.getElementById('inventoryBody');
+
+    if (term === "") { container.style.display = 'none'; return; }
+
+    const matches = inventoryData.filter(item => 
+        item.part.toLowerCase().includes(term) || 
+        item.desc.toLowerCase().includes(term)
+    );
+
+    if (matches.length > 0) {
+        container.style.display = 'block';
+        body.innerHTML = matches.map(item => {
+            const stockVal = parseFloat(item.stock) || 0;
+            const isOut = stockVal <= 0;
+            return `<tr>
+                <td class="part-no">${item.part}</td>
+                <td>${item.desc}</td>
+                <td style="text-align:center">
+                    <span class="stock-badge ${isOut ? 'out-of-stock' : ''}">${item.stock}</span>
+                </td>
+            </tr>`;
+        }).join('');
+    } else {
+        container.style.display = 'block';
+        body.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:30px; color:#64748B;">No matching stock items found.</td></tr>';
+    }
+}
+
+// Auto refresh every 1 minute
+setInterval(initSystem, 60000);
+
+document.getElementById('searchInput').addEventListener('input', searchStock);
+window.onload = initSystem;
 </script>
+
+</body>
+</html>
