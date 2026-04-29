@@ -3,149 +3,168 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SFS | Inventory Stock Search</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<title>SFS | Smart Inventory Search</title>
 
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
-:root {
-    --primary: #1E4D9C;
-    --accent: #E73B32;
-    --bg: #F8FAFC;
-    --text: #1E293B;
+body { font-family: Inter; background:#F8FAFC; padding:20px; }
+.container { max-width:900px; margin:auto; background:white; padding:25px; border-radius:12px; }
+h1 { text-align:center; color:#1E4D9C; }
+
+.search-box { position:relative; }
+#searchInput {
+  width:100%; padding:15px; font-size:16px;
+  border-radius:10px; border:2px solid #ddd;
 }
-body {
-    font-family: 'Inter', sans-serif;
-    background-color: var(--bg);
-    color: var(--text);
-    margin: 0;
-    padding: 20px;
-    display: flex;
-    justify-content: center;
+#suggestions {
+  position:absolute; width:100%; background:white;
+  border:1px solid #ddd; border-top:none;
+  max-height:200px; overflow:auto; display:none;
 }
-.container {
-    width: 100%;
-    max-width: 900px;
-    background: white;
-    padding: 30px;
-    border-radius: 16px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-    border-top: 8px solid var(--primary);
+.suggestion {
+  padding:10px; cursor:pointer;
 }
-.header { text-align:center; margin-bottom:30px; }
-.header h1 { color: var(--primary); margin: 10px 0 5px; font-size:26px; text-transform:uppercase; letter-spacing:1px; }
-.header p { color: #64748B; margin:0; font-size:14px; font-weight:600; }
-.status-bar { text-align:center; margin-bottom:25px; padding:12px; border-radius:8px; background:#f1f5f9; font-size:14px; font-weight:600; }
-.online { color:#10B981 !important; background:#ecfdf5 !important; border:1px solid #10B981; }
-.offline { color:var(--accent) !important; background:#fef2f2 !important; border:1px solid var(--accent); }
-.search-wrapper { margin-bottom:25px; }
-#searchInput { width:100%; padding:18px 25px; font-size:18px; border:2px solid #E2E8F0; border-radius:12px; outline:none; }
-.table-container { overflow-x:auto; display:none; border-radius:12px; border:1px solid #E2E8F0; }
-table { width:100%; border-collapse:collapse; }
-th { background:#F8FAFC; padding:15px; font-size:12px; text-transform:uppercase; color:#64748B; }
-td { padding:15px; border-bottom:1px solid #F1F5F9; }
-.part-no { font-weight:700; color: var(--primary); }
-.stock-badge { padding:6px 12px; border-radius:8px; font-weight:700; background:#DCFCE7; color:#166534; }
-.out-of-stock { background:#FEE2E2; color:#991B1B; }
+.suggestion:hover { background:#f1f5f9; }
+
+.filter {
+  margin:15px 0;
+}
+select {
+  padding:10px; border-radius:8px;
+}
+
+table { width:100%; border-collapse:collapse; margin-top:15px; }
+th, td { padding:12px; border-bottom:1px solid #eee; }
+th { background:#f1f5f9; }
+.part-no { color:#1E4D9C; font-weight:bold; }
+.stock { padding:5px 10px; border-radius:6px; background:#DCFCE7; }
+.out { background:#FEE2E2; }
 </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="header">
-        <h1>Standard Fluid Systems</h1>
-        <p>Live Inventory Search Portal</p>
-    </div>
+<h1>Inventory Search</h1>
 
-    <div class="status-bar" id="statusBar">
-        <span id="statusText">Connecting...</span>
-    </div>
+<div class="search-box">
+<input type="text" id="searchInput" placeholder="Search part, description..." disabled>
+<div id="suggestions"></div>
+</div>
 
-    <div class="search-wrapper">
-        <input type="text" id="searchInput" placeholder="Search..." disabled>
-    </div>
+<div class="filter">
+<select id="locationFilter">
+<option value="">All Locations</option>
+</select>
+</div>
 
-    <div class="table-container" id="tableContainer">
-        <table>
-            <thead>
-                <tr>
-                    <th>Part Number</th>
-                    <th>Location</th>
-                    <th>Description</th>
-                    <th style="text-align:center">Stock</th>
-                </tr>
-            </thead>
-            <tbody id="inventoryBody"></tbody>
-        </table>
-    </div>
+<table id="table" style="display:none;">
+<thead>
+<tr>
+<th>Part</th>
+<th>Location</th>
+<th>Description</th>
+<th>Stock</th>
+</tr>
+</thead>
+<tbody id="body"></tbody>
+</table>
+
 </div>
 
 <script>
-const SCRIPT_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?gid=1719776219&single=true&output=csv&_=' + new Date().getTime();
+const URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?gid=1719776219&single=true&output=csv&_=" + new Date().getTime();
 
-let inventoryData = [];
+let data = [];
 
-async function initSystem() {
-    const statusText = document.getElementById('statusText');
-    const searchInput = document.getElementById('searchInput');
+async function loadData(){
+ let res = await fetch(URL);
+ let txt = await res.text();
+ let rows = Papa.parse(txt).data;
 
-    try {
-        const response = await fetch(SCRIPT_URL);
-        const csvText = await response.text();
+ data = rows.slice(1).map(r=>({
+  part:r[0]||"",
+  location:r[1]||"",
+  desc:r[2]||"",
+  stock:r[6]||0
+ })).filter(i=>i.part);
 
-        const parsed = Papa.parse(csvText.trim());
-        const rows = parsed.data;
+ document.getElementById("searchInput").disabled=false;
 
-        inventoryData = rows.slice(1).map(row => ({
-            part: row[0] || "",
-            location: row[1] || "---", // ✅ Location added
-            desc: row[2] || "---",
-            stock: row[6] || 0
-        })).filter(i => i.part);
-
-        statusText.innerHTML = "✅ System Online";
-        searchInput.disabled = false;
-
-    } catch (e) {
-        statusText.innerHTML = "❌ Error loading data";
-    }
+ loadLocations();
 }
 
-function searchStock() {
-    const term = document.getElementById('searchInput').value.toLowerCase();
-    const body = document.getElementById('inventoryBody');
-    const container = document.getElementById('tableContainer');
-
-    if (!term) { container.style.display = 'none'; return; }
-
-    const matches = inventoryData.filter(i =>
-        i.part.toLowerCase().includes(term) ||
-        i.desc.toLowerCase().includes(term) ||
-        i.location.toLowerCase().includes(term)
-    );
-
-    container.style.display = 'block';
-
-    body.innerHTML = matches.map(i => {
-        const out = parseFloat(i.stock) <= 0;
-        return `
-        <tr>
-            <td class="part-no">${i.part}</td>
-            <td>${i.location}</td>
-            <td>${i.desc}</td>
-            <td style="text-align:center">
-                <span class="stock-badge ${out ? 'out-of-stock' : ''}">
-                    ${i.stock}
-                </span>
-            </td>
-        </tr>`;
-    }).join('');
+function loadLocations(){
+ let set = new Set(data.map(i=>i.location));
+ let select = document.getElementById("locationFilter");
+ set.forEach(loc=>{
+  let opt = document.createElement("option");
+  opt.value=loc;
+  opt.textContent=loc;
+  select.appendChild(opt);
+ });
 }
 
-setInterval(initSystem, 60000);
-document.getElementById('searchInput').addEventListener('input', searchStock);
-window.onload = initSystem;
+function render(list){
+ let body = document.getElementById("body");
+ let table = document.getElementById("table");
+
+ table.style.display="table";
+
+ body.innerHTML = list.map(i=>{
+  let out = parseFloat(i.stock)<=0;
+  return `<tr>
+   <td class="part-no">${i.part}</td>
+   <td>${i.location}</td>
+   <td>${i.desc}</td>
+   <td><span class="stock ${out?'out':''}">${i.stock}</span></td>
+  </tr>`;
+ }).join("");
+}
+
+function search(){
+ let val = searchInput.value.toLowerCase();
+ let loc = locationFilter.value;
+
+ let filtered = data.filter(i=>{
+  return (
+   (i.part.toLowerCase().includes(val) ||
+    i.desc.toLowerCase().includes(val) ||
+    i.location.toLowerCase().includes(val))
+   &&
+   (loc=="" || i.location==loc)
+  );
+ });
+
+ render(filtered);
+ showSuggestions(val);
+}
+
+function showSuggestions(val){
+ let box = document.getElementById("suggestions");
+ if(!val){ box.style.display="none"; return; }
+
+ let matches = data.filter(i=>i.part.toLowerCase().includes(val)).slice(0,5);
+
+ box.innerHTML = matches.map(i=>
+  `<div class="suggestion" onclick="selectItem('${i.part}')">${i.part}</div>`
+ ).join("");
+
+ box.style.display="block";
+}
+
+function selectItem(part){
+ searchInput.value = part;
+ document.getElementById("suggestions").style.display="none";
+ search();
+}
+
+searchInput.addEventListener("input", search);
+locationFilter.addEventListener("change", search);
+
+loadData();
+setInterval(loadData,60000);
 </script>
 
 </body>
