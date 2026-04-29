@@ -3,73 +3,181 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SFS | Smart Inventory Search</title>
+<title>SFS | Inventory System</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
-body { font-family: Inter; background:#F8FAFC; padding:20px; }
-.container { max-width:900px; margin:auto; background:white; padding:25px; border-radius:12px; }
-h1 { text-align:center; color:#1E4D9C; }
-
-.search-box { position:relative; }
-#searchInput {
-  width:100%; padding:15px; font-size:16px;
-  border-radius:10px; border:2px solid #ddd;
+:root {
+  --primary:#1E4D9C;
+  --success:#10B981;
+  --danger:#E73B32;
+  --bg:#F8FAFC;
 }
+
+body {
+  font-family: Inter;
+  background: var(--bg);
+  margin:0;
+  padding:20px;
+}
+
+/* CONTAINER */
+.container {
+  max-width:950px;
+  margin:auto;
+  background:white;
+  padding:30px;
+  border-radius:16px;
+  box-shadow:0 10px 25px rgba(0,0,0,0.05);
+  border-top:8px solid var(--primary);
+}
+
+/* HEADER */
+.header { text-align:center; margin-bottom:25px; }
+.header h1 {
+  color:var(--primary);
+  font-size:28px;
+  letter-spacing:2px;
+  margin:0;
+}
+.header p {
+  color:#64748B;
+  font-size:14px;
+  font-weight:600;
+}
+
+/* STATUS */
+.status-bar {
+  text-align:center;
+  padding:12px;
+  border-radius:10px;
+  font-weight:600;
+  margin-bottom:20px;
+}
+.online { background:#D1FAE5; color:#065F46; border:1px solid var(--success); }
+.offline { background:#FEE2E2; color:#991B1B; border:1px solid var(--danger); }
+
+/* LOADER */
+.loader {
+  border:3px solid #ddd;
+  border-top:3px solid var(--primary);
+  border-radius:50%;
+  width:18px;
+  height:18px;
+  animation:spin 1s linear infinite;
+  display:inline-block;
+  margin-right:8px;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* SEARCH */
+.search-box { position:relative; margin-bottom:15px; }
+#searchInput {
+  width:100%;
+  padding:16px;
+  font-size:16px;
+  border-radius:10px;
+  border:2px solid #ddd;
+}
+#searchInput:focus {
+  border-color:var(--primary);
+  outline:none;
+}
+
+/* SUGGESTIONS */
 #suggestions {
-  position:absolute; width:100%; background:white;
-  border:1px solid #ddd; border-top:none;
-  max-height:200px; overflow:auto; display:none;
+  position:absolute;
+  width:100%;
+  background:white;
+  border:1px solid #ddd;
+  border-top:none;
+  max-height:200px;
+  overflow:auto;
+  display:none;
+  z-index:10;
 }
 .suggestion {
-  padding:10px; cursor:pointer;
+  padding:10px;
+  cursor:pointer;
 }
 .suggestion:hover { background:#f1f5f9; }
 
-.filter {
-  margin:15px 0;
-}
+/* FILTER */
+.filter { margin-bottom:15px; }
 select {
-  padding:10px; border-radius:8px;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #ddd;
 }
 
-table { width:100%; border-collapse:collapse; margin-top:15px; }
-th, td { padding:12px; border-bottom:1px solid #eee; }
-th { background:#f1f5f9; }
-.part-no { color:#1E4D9C; font-weight:bold; }
-.stock { padding:5px 10px; border-radius:6px; background:#DCFCE7; }
-.out { background:#FEE2E2; }
+/* TABLE */
+table {
+  width:100%;
+  border-collapse:collapse;
+}
+th {
+  background:#F1F5F9;
+  padding:12px;
+  font-size:12px;
+  text-transform:uppercase;
+}
+td {
+  padding:12px;
+  border-bottom:1px solid #eee;
+}
+tr:hover { background:#f9fbff; }
+.part-no { color:var(--primary); font-weight:bold; }
+
+/* STOCK */
+.stock {
+  padding:6px 12px;
+  border-radius:6px;
+  background:#DCFCE7;
+  font-weight:600;
+}
+.out {
+  background:#FEE2E2;
+}
 </style>
 </head>
+
 <body>
 
 <div class="container">
-<h1>Inventory Search</h1>
 
-<div class="search-box">
-<input type="text" id="searchInput" placeholder="Search part, description..." disabled>
-<div id="suggestions"></div>
-</div>
+  <div class="header">
+    <h1>STANDARD FLUID SYSTEMS</h1>
+    <p>Live Inventory Search Portal</p>
+  </div>
 
-<div class="filter">
-<select id="locationFilter">
-<option value="">All Locations</option>
-</select>
-</div>
+  <div class="status-bar" id="statusBar">
+    <span class="loader"></span> Connecting to database...
+  </div>
 
-<table id="table" style="display:none;">
-<thead>
-<tr>
-<th>Part</th>
-<th>Location</th>
-<th>Description</th>
-<th>Stock</th>
-</tr>
-</thead>
-<tbody id="body"></tbody>
-</table>
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="Search part, description..." disabled>
+    <div id="suggestions"></div>
+  </div>
+
+  <div class="filter">
+    <select id="locationFilter">
+      <option value="">All Locations</option>
+    </select>
+  </div>
+
+  <table id="table" style="display:none;">
+    <thead>
+      <tr>
+        <th>Part Number</th>
+        <th>Location</th>
+        <th>Description</th>
+        <th style="text-align:center;">Stock</th>
+      </tr>
+    </thead>
+    <tbody id="body"></tbody>
+  </table>
 
 </div>
 
@@ -79,30 +187,45 @@ const URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMEN
 let data = [];
 
 async function loadData(){
- let res = await fetch(URL);
- let txt = await res.text();
- let rows = Papa.parse(txt).data;
+ const status = document.getElementById("statusBar");
 
- data = rows.slice(1).map(r=>({
-  part:r[0]||"",
-  location:r[1]||"",
-  desc:r[2]||"",
-  stock:r[6]||0
- })).filter(i=>i.part);
+ try {
+  const res = await fetch(URL);
+  const txt = await res.text();
+  const rows = Papa.parse(txt).data;
 
- document.getElementById("searchInput").disabled=false;
+  data = rows.slice(1).map(r=>({
+    part:r[0]||"",
+    location:r[1]||"",
+    desc:r[2]||"",
+    stock:r[6]||0
+  })).filter(i=>i.part);
 
- loadLocations();
+  status.className = "status-bar online";
+  status.innerHTML = "✅ System Online | Inventory Ready";
+
+  document.getElementById("searchInput").disabled=false;
+
+  loadLocations();
+
+ } catch(e) {
+  status.className = "status-bar offline";
+  status.innerHTML = "❌ Connection Failed";
+ }
 }
 
 function loadLocations(){
- let set = new Set(data.map(i=>i.location));
  let select = document.getElementById("locationFilter");
+ select.innerHTML = '<option value="">All Locations</option>';
+
+ let set = new Set(data.map(i=>i.location));
  set.forEach(loc=>{
-  let opt = document.createElement("option");
-  opt.value=loc;
-  opt.textContent=loc;
-  select.appendChild(opt);
+  if(loc){
+   let opt = document.createElement("option");
+   opt.value=loc;
+   opt.textContent=loc;
+   select.appendChild(opt);
+  }
  });
 }
 
@@ -118,7 +241,9 @@ function render(list){
    <td class="part-no">${i.part}</td>
    <td>${i.location}</td>
    <td>${i.desc}</td>
-   <td><span class="stock ${out?'out':''}">${i.stock}</span></td>
+   <td style="text-align:center;">
+     <span class="stock ${out?'out':''}">${i.stock}</span>
+   </td>
   </tr>`;
  }).join("");
 }
