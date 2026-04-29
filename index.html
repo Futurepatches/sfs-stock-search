@@ -6,7 +6,6 @@
 <title>SFS | Inventory Stock Search</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
-<!-- PapaParse Library for proper CSV parsing -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
@@ -27,7 +26,7 @@ body {
 }
 .container {
     width: 100%;
-    max-width: 850px;
+    max-width: 900px;
     background: white;
     padding: 30px;
     border-radius: 16px;
@@ -37,27 +36,18 @@ body {
 .header { text-align:center; margin-bottom:30px; }
 .header h1 { color: var(--primary); margin: 10px 0 5px; font-size:26px; text-transform:uppercase; letter-spacing:1px; }
 .header p { color: #64748B; margin:0; font-size:14px; font-weight:600; }
-.status-bar { text-align:center; margin-bottom:25px; padding:12px; border-radius:8px; background:#f1f5f9; font-size:14px; font-weight:600; transition:all 0.3s ease; }
+.status-bar { text-align:center; margin-bottom:25px; padding:12px; border-radius:8px; background:#f1f5f9; font-size:14px; font-weight:600; }
 .online { color:#10B981 !important; background:#ecfdf5 !important; border:1px solid #10B981; }
 .offline { color:var(--accent) !important; background:#fef2f2 !important; border:1px solid var(--accent); }
-.search-wrapper { position:relative; margin-bottom:25px; }
-#searchInput { width:100%; padding:18px 25px; font-size:18px; border:2px solid #E2E8F0; border-radius:12px; box-sizing:border-box; outline:none; box-shadow:0 2px 4px rgba(0,0,0,0.02); transition:all 0.3s ease; }
-#searchInput:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(30,77,156,0.1); }
-.table-container { overflow-x:auto; display:none; border-radius:12px; border:1px solid #E2E8F0; margin-top:10px; }
-table { width:100%; border-collapse:collapse; text-align:left; }
-th { background:#F8FAFC; padding:15px; font-size:12px; text-transform:uppercase; letter-spacing:0.05em; color:#64748B; border-bottom:2px solid #E2E8F0; }
-td { padding:15px; border-bottom:1px solid #F1F5F9; font-size:15px; }
-tr:hover { background-color:#f9fbff; }
+.search-wrapper { margin-bottom:25px; }
+#searchInput { width:100%; padding:18px 25px; font-size:18px; border:2px solid #E2E8F0; border-radius:12px; outline:none; }
+.table-container { overflow-x:auto; display:none; border-radius:12px; border:1px solid #E2E8F0; }
+table { width:100%; border-collapse:collapse; }
+th { background:#F8FAFC; padding:15px; font-size:12px; text-transform:uppercase; color:#64748B; }
+td { padding:15px; border-bottom:1px solid #F1F5F9; }
 .part-no { font-weight:700; color: var(--primary); }
-.stock-badge { padding:6px 12px; border-radius:8px; font-weight:700; font-size:14px; background:#DCFCE7; color:#166534; display:inline-block; min-width:45px; text-align:center; }
+.stock-badge { padding:6px 12px; border-radius:8px; font-weight:700; background:#DCFCE7; color:#166534; }
 .out-of-stock { background:#FEE2E2; color:#991B1B; }
-.loader { border:3px solid #cbd5e1; border-top:3px solid var(--primary); border-radius:50%; width:18px; height:18px; animation:spin 1s linear infinite; display:inline-block; vertical-align:middle; margin-right:10px; }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-@media (max-width:600px) {
-    .container { padding:15px; }
-    td, th { padding:12px 10px; font-size:13px; }
-    #searchInput { padding:15px; font-size:16px; }
-}
 </style>
 </head>
 <body>
@@ -69,21 +59,21 @@ tr:hover { background-color:#f9fbff; }
     </div>
 
     <div class="status-bar" id="statusBar">
-        <div class="loader" id="loader"></div>
-        <span id="statusText">Connecting to Secure Database...</span>
+        <span id="statusText">Connecting...</span>
     </div>
 
     <div class="search-wrapper">
-        <input type="text" id="searchInput" placeholder="Search Part No or Description..." disabled>
+        <input type="text" id="searchInput" placeholder="Search..." disabled>
     </div>
 
     <div class="table-container" id="tableContainer">
         <table>
             <thead>
                 <tr>
-                    <th width="30%">Part Number</th>
-                    <th width="50%">Description</th>
-                    <th width="20%" style="text-align:center">Stock</th>
+                    <th>Part Number</th>
+                    <th>Location</th>
+                    <th>Description</th>
+                    <th style="text-align:center">Stock</th>
                 </tr>
             </thead>
             <tbody id="inventoryBody"></tbody>
@@ -92,84 +82,68 @@ tr:hover { background-color:#f9fbff; }
 </div>
 
 <script>
-// LIVE Google Sheet CSV URL with cache bypass
 const SCRIPT_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?gid=1719776219&single=true&output=csv&_=' + new Date().getTime();
 
 let inventoryData = [];
 
 async function initSystem() {
     const statusText = document.getElementById('statusText');
-    const statusBar = document.getElementById('statusBar');
-    const loader = document.getElementById('loader');
     const searchInput = document.getElementById('searchInput');
 
     try {
         const response = await fetch(SCRIPT_URL);
-        if (!response.ok) throw new Error('HTTP Error');
-
         const csvText = await response.text();
-        const parsed = Papa.parse(csvText.trim(), { header: false });
+
+        const parsed = Papa.parse(csvText.trim());
         const rows = parsed.data;
 
-        // Map: Col A=Part, Col C=Desc, Col G=Stock
         inventoryData = rows.slice(1).map(row => ({
-            part: row[0] ? row[0].toString().trim() : "",
-            desc: row[2] ? row[2].toString().trim() : "---",
-            stock: (row[6] !== "" && row[6] !== undefined) ? row[6] : 0
-        })).filter(item => item.part !== "");
+            part: row[0] || "",
+            location: row[1] || "---", // ✅ Location added
+            desc: row[2] || "---",
+            stock: row[6] || 0
+        })).filter(i => i.part);
 
-        loader.style.display = 'none';
-        statusText.innerHTML = "✅ System Online | Inventory Ready";
-        statusBar.classList.add('online');
+        statusText.innerHTML = "✅ System Online";
         searchInput.disabled = false;
-        searchInput.placeholder = "Enter part to search...";
-        searchInput.focus();
 
-    } catch (error) {
-        console.error('System Error:', error);
-        loader.style.display = 'none';
-        statusText.innerHTML = "❌ Connection Failed. Refresh page.";
-        statusBar.classList.add('offline');
+    } catch (e) {
+        statusText.innerHTML = "❌ Error loading data";
     }
 }
 
 function searchStock() {
-    const term = document.getElementById('searchInput').value.toLowerCase().trim();
-    const container = document.getElementById('tableContainer');
+    const term = document.getElementById('searchInput').value.toLowerCase();
     const body = document.getElementById('inventoryBody');
+    const container = document.getElementById('tableContainer');
 
-    if (term === "") { 
-        container.style.display = 'none'; 
-        return; 
-    }
+    if (!term) { container.style.display = 'none'; return; }
 
-    const matches = inventoryData.filter(item => 
-        item.part.toLowerCase().includes(term) || 
-        item.desc.toLowerCase().includes(term)
+    const matches = inventoryData.filter(i =>
+        i.part.toLowerCase().includes(term) ||
+        i.desc.toLowerCase().includes(term) ||
+        i.location.toLowerCase().includes(term)
     );
 
-    if (matches.length > 0) {
-        container.style.display = 'block';
-        body.innerHTML = matches.map(item => {
-            const stockVal = parseFloat(item.stock) || 0;
-            const isOut = stockVal <= 0;
-            return `<tr>
-                <td class="part-no">${item.part}</td>
-                <td>${item.desc}</td>
-                <td style="text-align:center">
-                    <span class="stock-badge ${isOut ? 'out-of-stock' : ''}">${item.stock}</span>
-                </td>
-            </tr>`;
-        }).join('');
-    } else {
-        container.style.display = 'block';
-        body.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:30px; color:#64748B;">No matching stock items.</td></tr>';
-    }
+    container.style.display = 'block';
+
+    body.innerHTML = matches.map(i => {
+        const out = parseFloat(i.stock) <= 0;
+        return `
+        <tr>
+            <td class="part-no">${i.part}</td>
+            <td>${i.location}</td>
+            <td>${i.desc}</td>
+            <td style="text-align:center">
+                <span class="stock-badge ${out ? 'out-of-stock' : ''}">
+                    ${i.stock}
+                </span>
+            </td>
+        </tr>`;
+    }).join('');
 }
 
-// Refresh every 60 seconds
 setInterval(initSystem, 60000);
-
 document.getElementById('searchInput').addEventListener('input', searchStock);
 window.onload = initSystem;
 </script>
