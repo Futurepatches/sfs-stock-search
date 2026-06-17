@@ -23,7 +23,6 @@ body {
   padding:20px;
 }
 
-/* CONTAINER */
 .container {
   max-width:950px;
   margin:auto;
@@ -34,21 +33,10 @@ body {
   border-top:8px solid var(--primary);
 }
 
-/* HEADER */
 .header { text-align:center; margin-bottom:25px; }
-.header h1 {
-  color:var(--primary);
-  font-size:28px;
-  letter-spacing:2px;
-  margin:0;
-}
-.header p {
-  color:#64748B;
-  font-size:14px;
-  font-weight:600;
-}
+.header h1 { color:var(--primary); font-size:28px; margin:0; }
+.header p { color:#64748B; font-size:14px; font-weight:600; }
 
-/* STATUS */
 .status-bar {
   text-align:center;
   padding:12px;
@@ -56,24 +44,12 @@ body {
   font-weight:600;
   margin-bottom:20px;
 }
-.online { background:#D1FAE5; color:#065F46; border:1px solid var(--success); }
-.offline { background:#FEE2E2; color:#991B1B; border:1px solid var(--danger); }
 
-/* LOADER */
-.loader {
-  border:3px solid #ddd;
-  border-top:3px solid var(--primary);
-  border-radius:50%;
-  width:18px;
-  height:18px;
-  animation:spin 1s linear infinite;
-  display:inline-block;
-  margin-right:8px;
-}
-@keyframes spin { to { transform:rotate(360deg); } }
+.online { background:#D1FAE5; color:#065F46; }
+.offline { background:#FEE2E2; color:#991B1B; }
 
-/* SEARCH */
 .search-box { position:relative; margin-bottom:15px; }
+
 #searchInput {
   width:100%;
   padding:16px;
@@ -81,64 +57,47 @@ body {
   border-radius:10px;
   border:2px solid #ddd;
 }
-#searchInput:focus {
-  border-color:var(--primary);
-  outline:none;
-}
 
-/* SUGGESTIONS */
 #suggestions {
   position:absolute;
   width:100%;
   background:white;
   border:1px solid #ddd;
-  border-top:none;
   max-height:200px;
   overflow:auto;
   display:none;
   z-index:10;
 }
+
 .suggestion {
   padding:10px;
   cursor:pointer;
 }
-.suggestion:hover { background:#f1f5f9; }
 
-/* FILTER */
-.filter { margin-bottom:15px; }
-select {
-  padding:10px;
-  border-radius:8px;
-  border:1px solid #ddd;
-}
-
-/* TABLE */
 table {
   width:100%;
   border-collapse:collapse;
 }
+
 th {
   background:#F1F5F9;
   padding:12px;
-  font-size:12px;
-  text-transform:uppercase;
 }
+
 td {
   padding:12px;
   border-bottom:1px solid #eee;
 }
-tr:hover { background:#f9fbff; }
+
 .part-no { color:var(--primary); font-weight:bold; }
 
-/* STOCK */
-.stock {
-  padding:6px 12px;
-  border-radius:6px;
-  background:#DCFCE7;
-  font-weight:600;
-}
-.out {
-  background:#FEE2E2;
+/* IMAGE STYLE */
+.product-img {
+  width:60px;
+  height:60px;
+  object-fit:cover;
+  border-radius:8px;
+  border:1px solid #ddd;
 }
 </style>
 </head>
@@ -152,28 +111,21 @@ tr:hover { background:#f9fbff; }
     <p>Live Inventory Search Portal</p>
   </div>
 
-  <div class="status-bar" id="statusBar">
-    <span class="loader"></span> Connecting to database...
-  </div>
+  <div class="status-bar" id="statusBar">Loading...</div>
 
   <div class="search-box">
-    <input type="text" id="searchInput" placeholder="Search part, description..." disabled>
+    <input type="text" id="searchInput" placeholder="Search part..." disabled>
     <div id="suggestions"></div>
-  </div>
-
-  <div class="filter">
-    <select id="locationFilter">
-      <option value="">All Locations</option>
-    </select>
   </div>
 
   <table id="table" style="display:none;">
     <thead>
       <tr>
+        <th>Image</th>
         <th>Part Number</th>
         <th>Location</th>
         <th>Description</th>
-        <th style="text-align:center;">Stock</th>
+        <th>Stock</th>
       </tr>
     </thead>
     <tbody id="body"></tbody>
@@ -182,7 +134,8 @@ tr:hover { background:#f9fbff; }
 </div>
 
 <script>
-const URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?gid=1719776219&single=true&output=csv&_=" + new Date().getTime();
+
+const URL = "YOUR_GOOGLE_SHEET_CSV_URL";
 
 let data = [];
 
@@ -198,35 +151,19 @@ async function loadData(){
     part:r[0]||"",
     location:r[1]||"",
     desc:r[2]||"",
-    stock:r[6]||0
+    stock:r[3]||0,
+    image:r[4]||""   // ✅ IMAGE ADDED
   })).filter(i=>i.part);
 
   status.className = "status-bar online";
-  status.innerHTML = "✅ System Online | Inventory Ready";
+  status.innerHTML = "✅ System Online";
 
   document.getElementById("searchInput").disabled=false;
-
-  loadLocations();
 
  } catch(e) {
   status.className = "status-bar offline";
   status.innerHTML = "❌ Connection Failed";
  }
-}
-
-function loadLocations(){
- let select = document.getElementById("locationFilter");
- select.innerHTML = '<option value="">All Locations</option>';
-
- let set = new Set(data.map(i=>i.location));
- set.forEach(loc=>{
-  if(loc){
-   let opt = document.createElement("option");
-   opt.value=loc;
-   opt.textContent=loc;
-   select.appendChild(opt);
-  }
- });
 }
 
 function render(list){
@@ -236,60 +173,35 @@ function render(list){
  table.style.display="table";
 
  body.innerHTML = list.map(i=>{
-  let out = parseFloat(i.stock)<=0;
-  return `<tr>
-   <td class="part-no">${i.part}</td>
-   <td>${i.location}</td>
-   <td>${i.desc}</td>
-   <td style="text-align:center;">
-     <span class="stock ${out?'out':''}">${i.stock}</span>
-   </td>
+  return `
+  <tr>
+    <td><img class="product-img" src="${i.image}"></td>
+    <td class="part-no">${i.part}</td>
+    <td>${i.location}</td>
+    <td>${i.desc}</td>
+    <td>${i.stock}</td>
   </tr>`;
  }).join("");
 }
 
 function search(){
  let val = searchInput.value.toLowerCase();
- let loc = locationFilter.value;
 
  let filtered = data.filter(i=>{
   return (
-   (i.part.toLowerCase().includes(val) ||
-    i.desc.toLowerCase().includes(val) ||
-    i.location.toLowerCase().includes(val))
-   &&
-   (loc=="" || i.location==loc)
+   i.part.toLowerCase().includes(val) ||
+   i.desc.toLowerCase().includes(val)
   );
  });
 
  render(filtered);
- showSuggestions(val);
-}
-
-function showSuggestions(val){
- let box = document.getElementById("suggestions");
- if(!val){ box.style.display="none"; return; }
-
- let matches = data.filter(i=>i.part.toLowerCase().includes(val)).slice(0,5);
-
- box.innerHTML = matches.map(i=>
-  `<div class="suggestion" onclick="selectItem('${i.part}')">${i.part}</div>`
- ).join("");
-
- box.style.display="block";
-}
-
-function selectItem(part){
- searchInput.value = part;
- document.getElementById("suggestions").style.display="none";
- search();
 }
 
 searchInput.addEventListener("input", search);
-locationFilter.addEventListener("change", search);
 
 loadData();
 setInterval(loadData,60000);
+
 </script>
 
 </body>
