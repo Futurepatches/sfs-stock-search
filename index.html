@@ -11,8 +11,6 @@
 <style>
 :root {
   --primary:#1E4D9C;
-  --success:#10B981;
-  --danger:#E73B32;
   --bg:#F8FAFC;
 }
 
@@ -24,92 +22,86 @@ body {
 }
 
 .container {
-  max-width:950px;
+  max-width:1000px;
   margin:auto;
   background:white;
-  padding:30px;
+  padding:25px;
   border-radius:16px;
-  box-shadow:0 10px 25px rgba(0,0,0,0.05);
-  border-top:8px solid var(--primary);
+  box-shadow:0 10px 25px rgba(0,0,0,0.08);
+  border-top:6px solid var(--primary);
 }
 
-.header { text-align:center; margin-bottom:25px; }
-.header h1 { color:var(--primary); font-size:28px; margin:0; }
-.header p { color:#64748B; font-size:14px; font-weight:600; }
-
-.status-bar {
+h1 {
   text-align:center;
-  padding:12px;
-  border-radius:10px;
-  font-weight:600;
-  margin-bottom:20px;
+  color:var(--primary);
 }
 
-.online { background:#D1FAE5; color:#065F46; }
-.offline { background:#FEE2E2; color:#991B1B; }
-
-.search-box { position:relative; margin-bottom:15px; }
-
-#searchInput {
+.search-box {
   width:100%;
-  padding:16px;
+  padding:14px;
   font-size:16px;
-  border-radius:10px;
   border:2px solid #ddd;
+  border-radius:10px;
 }
 
-#suggestions {
-  position:absolute;
-  width:100%;
-  background:white;
-  border:1px solid #ddd;
-  max-height:200px;
-  overflow:auto;
-  display:none;
-  z-index:10;
+.search-box:focus {
+  border-color:var(--primary);
+  outline:none;
 }
 
-.suggestion {
-  padding:10px;
-  cursor:pointer;
-}
-
+/* TABLE */
 table {
   width:100%;
   border-collapse:collapse;
+  margin-top:20px;
 }
 
 th {
-  background:#F1F5F9;
+  background:#1E4D9C;
+  color:white;
   padding:12px;
-  font-size:12px;
-  text-transform:uppercase;
+  font-size:13px;
 }
 
 td {
-  padding:12px;
+  padding:10px;
   border-bottom:1px solid #eee;
   text-align:center;
 }
 
-.part-no { color:var(--primary); font-weight:bold; }
-
-.stock {
-  padding:6px 12px;
-  border-radius:6px;
-  background:#DCFCE7;
-  font-weight:600;
+.part {
+  color:var(--primary);
+  font-weight:bold;
 }
 
-.out { background:#FEE2E2; }
-
-/* IMAGE STYLE */
-.product-img {
+/* IMAGE */
+img {
   width:60px;
   height:60px;
   object-fit:cover;
   border-radius:8px;
   border:1px solid #ddd;
+  cursor:pointer;
+}
+
+/* POPUP */
+.popup {
+  display:none;
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.85);
+  justify-content:center;
+  align-items:center;
+  z-index:9999;
+}
+
+.popup img {
+  max-width:90%;
+  max-height:90%;
+  border-radius:10px;
 }
 </style>
 </head>
@@ -118,154 +110,90 @@ td {
 
 <div class="container">
 
-  <div class="header">
-    <h1>STANDARD FLUID SYSTEMS</h1>
-    <p>Live Inventory Search Portal</p>
-  </div>
+<h1>LIVE INVENTORY SEARCH</h1>
 
-  <div class="status-bar" id="statusBar">
-    <span class="loader"></span> Connecting to database...
-  </div>
+<input type="text" id="searchInput" class="search-box" placeholder="Search Part Number...">
 
-  <div class="search-box">
-    <input type="text" id="searchInput" placeholder="Search part, description..." disabled>
-    <div id="suggestions"></div>
-  </div>
+<table>
+<thead>
+<tr>
+  <th>Image</th>
+  <th>Part No</th>
+  <th>Location</th>
+  <th>Description</th>
+  <th>Stock</th>
+</tr>
+</thead>
+<tbody id="body"></tbody>
+</table>
 
-  <div class="filter">
-    <select id="locationFilter">
-      <option value="">All Locations</option>
-    </select>
-  </div>
+</div>
 
-  <table id="table" style="display:none;">
-    <thead>
-      <tr>
-        <th>Image</th>
-        <th>Part Number</th>
-        <th>Location</th>
-        <th>Description</th>
-        <th>Stock</th>
-      </tr>
-    </thead>
-    <tbody id="body"></tbody>
-  </table>
-
+<!-- POPUP -->
+<div class="popup" id="popup" onclick="closePopup()">
+  <img id="popupImg">
 </div>
 
 <script>
 
-const URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?gid=1719776219&single=true&output=csv&_=" + new Date().getTime();
+const URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?output=csv";
 
 let data = [];
 
 async function loadData(){
- const status = document.getElementById("statusBar");
-
- try {
   const res = await fetch(URL);
   const txt = await res.text();
   const rows = Papa.parse(txt).data;
 
-  data = rows.slice(1).map(r=>({
-    part:r[0]||"",
-    location:r[1]||"",
-    desc:r[2]||"",
-    stock:r[3]||0,
-    image:r[4]||""   // ✅ IMAGE ADDED
-  })).filter(i=>i.part);
-
-  status.className = "status-bar online";
-  status.innerHTML = "✅ System Online | Inventory Ready";
-
-  document.getElementById("searchInput").disabled=false;
-
-  loadLocations();
-
- } catch(e) {
-  status.className = "status-bar offline";
-  status.innerHTML = "❌ Connection Failed";
- }
-}
-
-function loadLocations(){
- let select = document.getElementById("locationFilter");
- select.innerHTML = '<option value="">All Locations</option>';
-
- let set = new Set(data.map(i=>i.location));
- set.forEach(loc=>{
-  if(loc){
-   let opt = document.createElement("option");
-   opt.value=loc;
-   opt.textContent=loc;
-   select.appendChild(opt);
-  }
- });
+  data = rows.slice(1).map(r => ({
+    part: r[0] || "",
+    location: r[1] || "",
+    desc: r[2] || "",
+    stock: r[3] || 0,
+    image: r[4] || ""
+  }));
 }
 
 function render(list){
- let body = document.getElementById("body");
- let table = document.getElementById("table");
+  let body = document.getElementById("body");
 
- table.style.display="table";
-
- body.innerHTML = list.map(i=>{
-  let out = parseFloat(i.stock)<=0;
-
-  return `<tr>
-    <td><img class="product-img" src="${i.image}"></td>
-    <td class="part-no">${i.part}</td>
-    <td>${i.location}</td>
-    <td>${i.desc}</td>
-    <td>
-      <span class="stock ${out?'out':''}">${i.stock}</span>
-    </td>
-  </tr>`;
- }).join("");
+  body.innerHTML = list.map(i => `
+    <tr>
+      <td>
+        <img src="${i.image}" onclick="openPopup('${i.image}')">
+      </td>
+      <td class="part">${i.part}</td>
+      <td>${i.location}</td>
+      <td>${i.desc}</td>
+      <td>${i.stock}</td>
+    </tr>
+  `).join("");
 }
 
 function search(){
- let val = searchInput.value.toLowerCase();
- let loc = locationFilter.value;
+  let val = searchInput.value.toLowerCase();
 
- let filtered = data.filter(i=>{
-  return (
-   (i.part.toLowerCase().includes(val) ||
+  let filtered = data.filter(i =>
+    i.part.toLowerCase().includes(val) ||
     i.desc.toLowerCase().includes(val) ||
-    i.location.toLowerCase().includes(val))
-   &&
-   (loc=="" || i.location==loc)
+    i.location.toLowerCase().includes(val)
   );
- });
 
- render(filtered);
- showSuggestions(val);
-}
-
-function showSuggestions(val){
- let box = document.getElementById("suggestions");
- if(!val){ box.style.display="none"; return; }
-
- let matches = data.filter(i=>i.part.toLowerCase().includes(val)).slice(0,5);
-
- box.innerHTML = matches.map(i=>
-  `<div class="suggestion" onclick="selectItem('${i.part}')">${i.part}</div>`
- ).join("");
-
- box.style.display="block";
-}
-
-function selectItem(part){
- searchInput.value = part;
- document.getElementById("suggestions").style.display="none";
- search();
+  render(filtered);
 }
 
 searchInput.addEventListener("input", search);
-locationFilter.addEventListener("change", search);
+
+function openPopup(src){
+  document.getElementById("popup").style.display = "flex";
+  document.getElementById("popupImg").src = src;
+}
+
+function closePopup(){
+  document.getElementById("popup").style.display = "none";
+}
 
 loadData();
-setInterval(loadData,60000);
 
 </script>
 
