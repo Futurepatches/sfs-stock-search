@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inventory System</title>
+<title>Live Inventory System</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -17,7 +17,6 @@ body{
   padding:25px;
 }
 
-/* MAIN CARD */
 .container{
   max-width:1100px;
   margin:auto;
@@ -28,7 +27,6 @@ body{
   border-top:6px solid #1E4D9C;
 }
 
-/* HEADER */
 h1{
   text-align:center;
   color:#1E4D9C;
@@ -41,17 +39,22 @@ p{
   margin-top:0;
 }
 
-/* SEARCH */
-.search{
-  width:100%;
-  padding:14px;
-  font-size:16px;
-  border-radius:10px;
-  border:2px solid #ddd;
+/* CONTROLS */
+.controls{
+  display:flex;
+  gap:10px;
   margin-top:15px;
 }
 
-.search:focus{
+input, select{
+  width:100%;
+  padding:14px;
+  font-size:15px;
+  border-radius:10px;
+  border:2px solid #ddd;
+}
+
+input:focus, select:focus{
   outline:none;
   border-color:#1E4D9C;
 }
@@ -61,8 +64,8 @@ table{
   width:100%;
   border-collapse:collapse;
   margin-top:20px;
-  overflow:hidden;
   border-radius:12px;
+  overflow:hidden;
 }
 
 th{
@@ -74,15 +77,14 @@ th{
 
 td{
   padding:12px;
-  border-bottom:1px solid #eee;
   text-align:center;
+  border-bottom:1px solid #eee;
 }
 
 tr:hover{
   background:#f6f9ff;
 }
 
-/* PART STYLE */
 .part{
   color:#1E4D9C;
   font-weight:600;
@@ -90,8 +92,8 @@ tr:hover{
 
 /* IMAGE */
 img{
-  width:65px;
-  height:65px;
+  width:75px;
+  height:75px;
   object-fit:cover;
   border-radius:10px;
   border:1px solid #ddd;
@@ -100,7 +102,7 @@ img{
 }
 
 img:hover{
-  transform:scale(1.05);
+  transform:scale(1.08);
 }
 
 /* POPUP */
@@ -118,16 +120,14 @@ img:hover{
 }
 
 .popup img{
-  max-width:98vw;
-  max-height:98vh;
+  max-width:95vw;
+  max-height:95vh;
   object-fit:contain;
   background:white;
   padding:10px;
   border-radius:12px;
-  box-shadow:0 0 20px rgba(0,0,0,0.4);
 }
 
-/* STOCK */
 .stock{
   font-weight:600;
 }
@@ -144,9 +144,15 @@ img:hover{
 <div class="container">
 
 <h1>LIVE INVENTORY SYSTEM</h1>
-<p>Search Part Number & View Stock Instantly</p>
+<p>Search by Part, Location & View Stock Instantly</p>
 
-<input type="text" id="searchInput" class="search" placeholder="Search Part Number...">
+<div class="controls">
+  <input type="text" id="searchInput" placeholder="Search Part Number...">
+
+  <select id="locationFilter">
+    <option value="">All Locations</option>
+  </select>
+</div>
 
 <table>
 <thead>
@@ -158,6 +164,7 @@ img:hover{
   <th>Stock</th>
 </tr>
 </thead>
+
 <tbody id="body"></tbody>
 </table>
 
@@ -180,14 +187,29 @@ async function loadData(){
   const rows = Papa.parse(txt).data;
 
   data = rows.slice(1).map(r => ({
-    part: r[0] || "",
-    location: r[1] || "",
-    desc: r[2] || "",
-    stock: r[3] || 0,
-    image: r[4] || ""
+    part: r[0] || "",     // A
+    location: r[1] || "", // B
+    desc: r[2] || "",     // C
+    image: r[4] || "",    // E
+    stock: r[6] || 0      // G
   }));
 
+  fillLocations();
   render(data);
+}
+
+function fillLocations(){
+  let select = document.getElementById("locationFilter");
+  let set = new Set(data.map(i => i.location));
+
+  set.forEach(loc => {
+    if(loc){
+      let opt = document.createElement("option");
+      opt.value = loc;
+      opt.textContent = loc;
+      select.appendChild(opt);
+    }
+  });
 }
 
 function render(list){
@@ -208,19 +230,23 @@ function render(list){
   }).join("");
 }
 
-function search(){
+function filterData(){
   let val = searchInput.value.toLowerCase();
+  let loc = locationFilter.value;
 
   let filtered = data.filter(i =>
-    i.part.toLowerCase().includes(val) ||
-    i.desc.toLowerCase().includes(val) ||
-    i.location.toLowerCase().includes(val)
+    (i.part.toLowerCase().includes(val) ||
+     i.desc.toLowerCase().includes(val) ||
+     i.location.toLowerCase().includes(val))
+    &&
+    (loc === "" || i.location === loc)
   );
 
   render(filtered);
 }
 
-searchInput.addEventListener("input", search);
+searchInput.addEventListener("input", filterData);
+locationFilter.addEventListener("change", filterData);
 
 /* POPUP */
 function openPopup(src){
