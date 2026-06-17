@@ -3,89 +3,108 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SFS | Inventory System</title>
+<title>Inventory System</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
-:root {
-  --primary:#1E4D9C;
-  --bg:#F8FAFC;
-}
 
-body {
-  font-family: Inter;
-  background: var(--bg);
+body{
   margin:0;
-  padding:20px;
+  font-family:Inter;
+  background:#f3f6fb;
+  padding:25px;
 }
 
-.container {
-  max-width:1000px;
+/* MAIN CARD */
+.container{
+  max-width:1100px;
   margin:auto;
   background:white;
   padding:25px;
-  border-radius:16px;
-  box-shadow:0 10px 25px rgba(0,0,0,0.08);
-  border-top:6px solid var(--primary);
+  border-radius:18px;
+  box-shadow:0 12px 30px rgba(0,0,0,0.08);
+  border-top:6px solid #1E4D9C;
 }
 
-h1 {
+/* HEADER */
+h1{
   text-align:center;
-  color:var(--primary);
+  color:#1E4D9C;
+  margin-bottom:5px;
 }
 
-.search-box {
+p{
+  text-align:center;
+  color:#666;
+  margin-top:0;
+}
+
+/* SEARCH */
+.search{
   width:100%;
   padding:14px;
   font-size:16px;
-  border:2px solid #ddd;
   border-radius:10px;
+  border:2px solid #ddd;
+  margin-top:15px;
 }
 
-.search-box:focus {
-  border-color:var(--primary);
+.search:focus{
   outline:none;
+  border-color:#1E4D9C;
 }
 
 /* TABLE */
-table {
+table{
   width:100%;
   border-collapse:collapse;
   margin-top:20px;
+  overflow:hidden;
+  border-radius:12px;
 }
 
-th {
+th{
   background:#1E4D9C;
   color:white;
-  padding:12px;
+  padding:14px;
   font-size:13px;
 }
 
-td {
-  padding:10px;
+td{
+  padding:12px;
   border-bottom:1px solid #eee;
   text-align:center;
 }
 
-.part {
-  color:var(--primary);
-  font-weight:bold;
+tr:hover{
+  background:#f6f9ff;
+}
+
+/* PART STYLE */
+.part{
+  color:#1E4D9C;
+  font-weight:600;
 }
 
 /* IMAGE */
-img {
-  width:60px;
-  height:60px;
+img{
+  width:65px;
+  height:65px;
   object-fit:cover;
-  border-radius:8px;
+  border-radius:10px;
   border:1px solid #ddd;
   cursor:pointer;
+  transition:0.2s;
+}
+
+img:hover{
+  transform:scale(1.05);
 }
 
 /* POPUP */
-.popup {
+.popup{
   display:none;
   position:fixed;
   top:0;
@@ -98,11 +117,25 @@ img {
   z-index:9999;
 }
 
-.popup img {
-  max-width:90%;
-  max-height:90%;
-  border-radius:10px;
+.popup img{
+  max-width:98vw;
+  max-height:98vh;
+  object-fit:contain;
+  background:white;
+  padding:10px;
+  border-radius:12px;
+  box-shadow:0 0 20px rgba(0,0,0,0.4);
 }
+
+/* STOCK */
+.stock{
+  font-weight:600;
+}
+
+.low{
+  color:red;
+}
+
 </style>
 </head>
 
@@ -110,9 +143,10 @@ img {
 
 <div class="container">
 
-<h1>LIVE INVENTORY SEARCH</h1>
+<h1>LIVE INVENTORY SYSTEM</h1>
+<p>Search Part Number & View Stock Instantly</p>
 
-<input type="text" id="searchInput" class="search-box" placeholder="Search Part Number...">
+<input type="text" id="searchInput" class="search" placeholder="Search Part Number...">
 
 <table>
 <thead>
@@ -152,12 +186,15 @@ async function loadData(){
     stock: r[3] || 0,
     image: r[4] || ""
   }));
+
+  render(data);
 }
 
 function render(list){
-  let body = document.getElementById("body");
+  document.getElementById("body").innerHTML = list.map(i => {
+    let low = parseFloat(i.stock) <= 0;
 
-  body.innerHTML = list.map(i => `
+    return `
     <tr>
       <td>
         <img src="${i.image}" onclick="openPopup('${i.image}')">
@@ -165,9 +202,10 @@ function render(list){
       <td class="part">${i.part}</td>
       <td>${i.location}</td>
       <td>${i.desc}</td>
-      <td>${i.stock}</td>
+      <td class="stock ${low ? 'low' : ''}">${i.stock}</td>
     </tr>
-  `).join("");
+    `;
+  }).join("");
 }
 
 function search(){
@@ -184,6 +222,7 @@ function search(){
 
 searchInput.addEventListener("input", search);
 
+/* POPUP */
 function openPopup(src){
   document.getElementById("popup").style.display = "flex";
   document.getElementById("popupImg").src = src;
