@@ -3,67 +3,97 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SFS Inventory System</title>
+<title>SFS Live Inventory</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
-*{
-  margin:0;
-  padding:0;
-  box-sizing:border-box;
-}
+*{box-sizing:border-box;}
 
 body{
+  margin:0;
   font-family:Inter,sans-serif;
-  background:#f2f6fc;
+  background:#eef3fa;
   padding:20px;
 }
 
 .container{
-  max-width:1400px;
+  max-width:1300px;
   margin:auto;
   background:#fff;
-  border-radius:20px;
-  box-shadow:0 12px 30px rgba(0,0,0,.08);
   padding:25px;
+  border-radius:20px;
+  box-shadow:0 10px 35px rgba(0,0,0,.08);
 }
 
-.header{
+h1{
   text-align:center;
-  margin-bottom:20px;
-}
-
-.header h1{
   color:#1E4D9C;
-  font-size:34px;
+  margin-bottom:5px;
 }
 
-.header p{
+p{
+  text-align:center;
   color:#666;
-  margin-top:5px;
+}
+
+.status{
+  text-align:center;
+  padding:12px;
+  border-radius:10px;
+  margin-bottom:20px;
+  font-weight:600;
+}
+
+.online{
+  background:#d4f8e8;
+  color:#087443;
+}
+
+.offline{
+  background:#ffdada;
+  color:#b10000;
 }
 
 .controls{
   display:flex;
-  gap:15px;
+  gap:10px;
   margin-bottom:20px;
 }
 
-.controls input,
-.controls select{
+input,select{
   width:100%;
   padding:14px;
   border:2px solid #ddd;
-  border-radius:12px;
+  border-radius:10px;
   font-size:15px;
 }
 
-.controls input:focus,
-.controls select:focus{
-  outline:none;
-  border-color:#1E4D9C;
+.preview-card{
+  display:none;
+  background:#f7faff;
+  border:1px solid #dbe7ff;
+  border-radius:16px;
+  padding:20px;
+  margin-bottom:20px;
+  display:flex;
+  gap:20px;
+  align-items:center;
+}
+
+.preview-card img{
+  width:180px;
+  height:180px;
+  object-fit:contain;
+  background:#fff;
+  border-radius:12px;
+  border:1px solid #ddd;
+}
+
+.preview-details h2{
+  margin:0 0 10px 0;
+  color:#1E4D9C;
 }
 
 table{
@@ -73,285 +103,240 @@ table{
 
 th{
   background:#1E4D9C;
-  color:#fff;
+  color:white;
   padding:14px;
-  font-size:13px;
 }
 
 td{
-  padding:12px;
   text-align:center;
+  padding:12px;
   border-bottom:1px solid #eee;
 }
 
 tr:hover{
-  background:#f8fbff;
+  background:#f7fbff;
 }
 
-.product-img{
-  width:75px;
-  height:75px;
+.table-img{
+  width:80px;
+  height:80px;
   object-fit:cover;
   border-radius:10px;
-  cursor:pointer;
   border:1px solid #ddd;
-}
-
-.details-btn{
-  background:#1E4D9C;
-  color:#fff;
-  border:none;
-  padding:10px 16px;
-  border-radius:8px;
   cursor:pointer;
 }
 
-.details-btn:hover{
-  background:#163b77;
-}
-
-.low-stock{
+.stock-low{
   color:red;
   font-weight:700;
 }
 
-.popup,
-.details-popup{
+.popup{
   display:none;
   position:fixed;
   inset:0;
-  background:rgba(0,0,0,.85);
+  background:rgba(0,0,0,.92);
   justify-content:center;
   align-items:center;
-  z-index:99999;
-}
-
-.popup-content{
-  text-align:center;
+  flex-direction:column;
+  z-index:9999;
 }
 
 .popup img{
-  max-width:90vw;
-  max-height:80vh;
+  max-width:85vw;
+  max-height:75vh;
   object-fit:contain;
+  transition:.3s;
 }
 
 .zoom-controls{
   margin-top:20px;
   display:flex;
-  justify-content:center;
   gap:10px;
 }
 
 .zoom-controls button{
-  padding:12px 16px;
+  padding:12px 18px;
   border:none;
-  background:#1E4D9C;
-  color:#fff;
   border-radius:8px;
-  cursor:pointer;
-}
-
-.details-box{
-  width:95%;
-  max-width:1200px;
-  max-height:90vh;
-  overflow:auto;
-  background:#fff;
-  border-radius:20px;
-  padding:25px;
-}
-
-.section-title{
-  color:#1E4D9C;
-  margin:20px 0 10px;
-}
-
-.history-table{
-  width:100%;
-  border-collapse:collapse;
-}
-
-.history-table th{
   background:#1E4D9C;
   color:white;
-}
-
-.history-table td{
-  border:1px solid #ddd;
-}
-
-.close-btn{
-  background:red;
-  color:white;
-  border:none;
-  padding:10px 15px;
-  border-radius:8px;
   cursor:pointer;
 }
-</style></head>
+</style>
+</head>
 <body>
 
 <div class="container">
+  <h1>SFS LIVE INVENTORY</h1>
+  <p>Search Parts, View Stock & Images</p>
 
-  <div class="header">
-    <h1>SFS LIVE INVENTORY</h1>
-    <p>Search Parts, Stock, Import & Return History</p>
-  </div>
+  <div id="statusBar" class="status">Connecting...</div>
 
   <div class="controls">
-    <input type="text" id="searchInput" placeholder="Search model, location or description...">
-    
+    <input type="text" id="searchInput" placeholder="Search Part Number...">
     <select id="locationFilter">
       <option value="">All Locations</option>
     </select>
+  </div>
+
+  <div class="preview-card" id="previewCard">
+    <img id="previewImg">
+    <div class="preview-details">
+      <h2 id="previewPart"></h2>
+      <p id="previewDesc"></p>
+      <p id="previewLoc"></p>
+      <p id="previewStock"></p>
+    </div>
   </div>
 
   <table>
     <thead>
       <tr>
         <th>Image</th>
-        <th>Model</th>
+        <th>Part</th>
         <th>Location</th>
         <th>Description</th>
         <th>Stock</th>
-        <th>Details</th>
       </tr>
     </thead>
-    <tbody id="tableBody"></tbody>
+    <tbody id="body"></tbody>
   </table>
-
 </div>
 
-<!-- IMAGE POPUP -->
-<div class="popup" id="imagePopup">
-  <div class="popup-content">
-    <img id="popupImage">
-
-    <div class="zoom-controls">
-      <button onclick="zoomIn()">+</button>
-      <button onclick="zoomOut()">-</button>
-      <button onclick="resetZoom()">Reset</button>
-      <button onclick="closePopup()">Close</button>
-    </div>
-  </div>
-</div>
-
-<!-- DETAILS POPUP -->
-<div class="details-popup" id="detailsPopup">
-  <div class="details-box">
-
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <h2 style="color:#1E4D9C;">Product Details</h2>
-      <button class="close-btn" onclick="closeDetails()">Close</button>
-    </div>
-
-    <div id="productInfo"></div>
-
-    <h3 class="section-title">Import History</h3>
-    <div id="importHistory"></div>
-
-    <h3 class="section-title">Sales History</h3>
-    <div id="salesHistory"></div>
-
-    <h3 class="section-title">Return History</h3>
-    <div id="returnHistory"></div>
-
+<div class="popup" id="popup">
+  <img id="popupImg">
+  <div class="zoom-controls">
+    <button onclick="zoomIn()">+</button>
+    <button onclick="zoomOut()">-</button>
+    <button onclick="resetZoom()">Reset</button>
+    <button onclick="closePopup()">Close</button>
   </div>
 </div>
 
 <script>
-const STOCK_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?gid=1719776219&single=true&output=csv";
-const IMPORT_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?gid=1389271409&single=true&output=csv";
-const RETURN_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?gid=1032386368&single=true&output=csv";
+const URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?output=csv";
+let data=[];
+let zoom=1;async function loadData(){
+  const status=document.getElementById("statusBar");
 
-let stockData = [];
-let importData = [];
-let returnData = [];
-let zoomLevel = 1;
-async function loadAllData() {
-  try {
-    const stockRes = await fetch(STOCK_URL);
-    const stockText = await stockRes.text();
-    stockData = Papa.parse(stockText).data;
+  try{
+    const res=await fetch(URL);
+    const txt=await res.text();
+    const rows=Papa.parse(txt).data;
 
-    const importRes = await fetch(IMPORT_URL);
-    const importText = await importRes.text();
-    importData = Papa.parse(importText).data;
+    data=rows.slice(1).map(r=>({
+      part:r[0]||"",
+      location:r[1]||"",
+      desc:r[2]||"",
+      image:r[4]||"",
+      stock:r[6]||0
+    }));
 
-    const returnRes = await fetch(RETURN_URL);
-    const returnText = await returnRes.text();
-    returnData = Papa.parse(returnText).data;
+    status.className="status online";
+    status.innerHTML="System Online";
 
     fillLocations();
-    renderTable();
-
-  } catch (error) {
-    alert("Connection Failed");
-    console.error(error);
+    render(data);
+  }catch(e){
+    status.className="status offline";
+    status.innerHTML="Connection Failed";
   }
 }
 
 function fillLocations(){
-  const filter = document.getElementById("locationFilter");
-  let locations = [...new Set(stockData.slice(1).map(row => row[1]).filter(Boolean))];
+  let select=document.getElementById("locationFilter");
+  let set=new Set(data.map(i=>i.location));
 
-  locations.forEach(loc => {
-    let option = document.createElement("option");
-    option.value = loc;
-    option.textContent = loc;
-    filter.appendChild(option);
+  set.forEach(loc=>{
+    if(loc){
+      let opt=document.createElement("option");
+      opt.value=loc;
+      opt.textContent=loc;
+      select.appendChild(opt);
+    }
   });
 }
 
-function renderTable(data = stockData.slice(1)){
-  const body = document.getElementById("tableBody");
-
-  body.innerHTML = data.map(row => {
-    const model = row[0] || "";
-    const location = row[1] || "";
-    const description = row[2] || "";
-    const image = row[4] || "";
-    const stock = row[6] || "0";
+function render(list){
+  document.getElementById("body").innerHTML=list.map(i=>{
+    let stockLow=parseFloat(i.stock)<=0;
+    let img=i.image ? i.image : "https://via.placeholder.com/150?text=No+Image";
 
     return `
-      <tr>
-        <td>
-          ${image ? `<img src="${image}" class="product-img" onclick="openPopup('${image}')">` : 'No Image'}
-        </td>
-        <td>${model}</td>
-        <td>${location}</td>
-        <td>${description}</td>
-        <td class="${parseFloat(stock)<=0 ? 'low-stock' : ''}">${stock}</td>
-        <td>
-          <button class="details-btn" onclick="showDetails('${model}')">Details</button>
-        </td>
-      </tr>
+    <tr onclick='showPreview(${JSON.stringify(JSON.stringify(i))})'>
+      <td><img class="table-img" src="${img}" onclick="event.stopPropagation();openPopup('${img}')"></td>
+      <td>${i.part}</td>
+      <td>${i.location}</td>
+      <td>${i.desc}</td>
+      <td class="${stockLow?'stock-low':''}">${i.stock}</td>
+    </tr>
     `;
   }).join("");
 }
 
 function filterData(){
-  const search = document.getElementById("searchInput").value.toLowerCase();
-  const location = document.getElementById("locationFilter").value;
+  let val=searchInput.value.toLowerCase();
+  let loc=locationFilter.value;
 
-  const filtered = stockData.slice(1).filter(row => {
-    const model = (row[0] || "").toLowerCase();
-    const loc = (row[1] || "").toLowerCase();
-    const desc = (row[2] || "").toLowerCase();
+  let filtered=data.filter(i=>
+    (i.part.toLowerCase().includes(val) ||
+     i.desc.toLowerCase().includes(val) ||
+     i.location.toLowerCase().includes(val))
+    &&
+    (loc==="" || i.location===loc)
+  );
 
-    const searchMatch =
-      model.includes(search) ||
-      loc.includes(search) ||
-      desc.includes(search);
-
-    const locationMatch = !location || row[1] === location;
-
-    return searchMatch && locationMatch;
-  });
-
-  renderTable(filtered);
+  render(filtered);
 }
 
-document.getElementById("searchInput").addEventListener("input", filterData);
-document.getElementById("locationFilter").addEventListener("change", filterData);
+function showPreview(item){
+  item=JSON.parse(item);
+
+  document.getElementById("previewCard").style.display="flex";
+  document.getElementById("previewImg").src=item.image || "https://via.placeholder.com/300?text=No+Image";
+  document.getElementById("previewPart").innerText=item.part;
+  document.getElementById("previewDesc").innerText=item.desc;
+  document.getElementById("previewLoc").innerText="Location: "+item.location;
+  document.getElementById("previewStock").innerText="Stock: "+item.stock;
+}
+
+function openPopup(src){
+  document.getElementById("popup").style.display="flex";
+  document.getElementById("popupImg").src=src;
+  zoom=1;
+  applyZoom();
+}
+
+function closePopup(){
+  document.getElementById("popup").style.display="none";
+}
+
+function zoomIn(){
+  zoom+=0.2;
+  applyZoom();
+}
+
+function zoomOut(){
+  if(zoom>0.4){
+    zoom-=0.2;
+    applyZoom();
+  }
+}
+
+function resetZoom(){
+  zoom=1;
+  applyZoom();
+}
+
+function applyZoom(){
+  document.getElementById("popupImg").style.transform=`scale(${zoom})`;
+}
+
+searchInput.addEventListener("input",filterData);
+locationFilter.addEventListener("change",filterData);
+
+loadData();
+</script>
+</body>
+</html>
