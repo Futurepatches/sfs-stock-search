@@ -19,7 +19,7 @@ body{
 }
 
 .container{
-  max-width:1300px;
+  max-width:1400px;
   margin:auto;
   background:#fff;
   padding:25px;
@@ -77,7 +77,6 @@ input,select{
   border-radius:16px;
   padding:20px;
   margin-bottom:20px;
-  display:flex;
   gap:20px;
   align-items:center;
 }
@@ -155,7 +154,8 @@ tr:hover{
   gap:10px;
 }
 
-.zoom-controls button{
+.zoom-controls button,
+.details-btn{
   padding:12px 18px;
   border:none;
   border-radius:8px;
@@ -163,60 +163,116 @@ tr:hover{
   color:white;
   cursor:pointer;
 }
+
+.details-popup{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.85);
+  z-index:99999;
+  justify-content:center;
+  align-items:center;
+}
+
+.details-box{
+  width:95%;
+  max-width:1300px;
+  max-height:90vh;
+  overflow:auto;
+  background:white;
+  border-radius:20px;
+  padding:25px;
+}
+
+.history-table{
+  width:100%;
+  margin-top:15px;
+  border-collapse:collapse;
+}
+
+.history-table th{
+  background:#1E4D9C;
+  color:white;
+  padding:10px;
+}
+
+.history-table td{
+  padding:10px;
+  border:1px solid #ddd;
+}
 </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>SFS LIVE INVENTORY</h1>
-  <p>Search Parts, View Stock & Images</p>
+<h1>SFS LIVE INVENTORY</h1>
+<p>Search Parts, View Stock & Details</p>
 
-  <div id="statusBar" class="status">Connecting...</div>
+<div id="statusBar" class="status">Connecting...</div>
 
-  <div class="controls">
-    <input type="text" id="searchInput" placeholder="Search Part Number...">
-    <select id="locationFilter">
-      <option value="">All Locations</option>
-    </select>
-  </div>
+<div class="controls">
+<input type="text" id="searchInput" placeholder="Search Part Number...">
+<select id="locationFilter">
+<option value="">All Locations</option>
+</select>
+</div>
 
-  <div class="preview-card" id="previewCard">
-    <img id="previewImg">
-    <div class="preview-details">
-      <h2 id="previewPart"></h2>
-      <p id="previewDesc"></p>
-      <p id="previewLoc"></p>
-      <p id="previewStock"></p>
-    </div>
-  </div>
+<div class="preview-card" id="previewCard">
+<img id="previewImg">
+<div class="preview-details">
+<h2 id="previewPart"></h2>
+<p id="previewDesc"></p>
+<p id="previewLoc"></p>
+<p id="previewStock"></p>
+</div>
+</div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Image</th>
-        <th>Part</th>
-        <th>Location</th>
-        <th>Description</th>
-        <th>Stock</th>
-      </tr>
-    </thead>
-    <tbody id="body"></tbody>
-  </table>
+<table>
+<thead>
+<tr>
+<th>Image</th>
+<th>Part</th>
+<th>Location</th>
+<th>Description</th>
+<th>Stock</th>
+<th>Details</th>
+</tr>
+</thead>
+<tbody id="body"></tbody>
+</table>
 </div>
 
 <div class="popup" id="popup">
-  <img id="popupImg">
-  <div class="zoom-controls">
-    <button onclick="zoomIn()">+</button>
-    <button onclick="zoomOut()">-</button>
-    <button onclick="resetZoom()">Reset</button>
-    <button onclick="closePopup()">Close</button>
-  </div>
+<img id="popupImg">
+<div class="zoom-controls">
+<button onclick="zoomIn()">+</button>
+<button onclick="zoomOut()">-</button>
+<button onclick="resetZoom()">Reset</button>
+<button onclick="closePopup()">Close</button>
+</div>
+</div>
+
+<div class="details-popup" id="detailsPopup">
+<div class="details-box">
+<h2 id="detailTitle">Details</h2>
+<div id="detailInfo"></div>
+
+<h3>Sales History</h3>
+<div id="salesHistory"></div>
+
+<h3>Return History</h3>
+<div id="returnHistory"></div>
+
+<button onclick="closeDetails()">Close</button>
+</div>
 </div>
 
 <script>
 const URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?output=csv";
+const RETURN_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?gid=1032386368&single=true&output=csv";
+
 let data=[];
+let returnData=[];
 let zoom=1;async function loadData(){
   const status=document.getElementById("statusBar");
 
@@ -225,12 +281,19 @@ let zoom=1;async function loadData(){
     const txt=await res.text();
     const rows=Papa.parse(txt).data;
 
+    const returnRes=await fetch(RETURN_URL);
+    const returnTxt=await returnRes.text();
+    returnData=Papa.parse(returnTxt).data;
+
     data=rows.slice(1).map(r=>({
       part:r[0]||"",
       location:r[1]||"",
       desc:r[2]||"",
       image:r[4]||"",
-      stock:r[6]||0
+      stock:r[6]||0,
+      totalImport:r[8]||0,
+      totalReturn:r[9]||0,
+      raw:r
     }));
 
     status.className="status online";
@@ -247,7 +310,6 @@ let zoom=1;async function loadData(){
 function fillLocations(){
   let select=document.getElementById("locationFilter");
   let set=new Set(data.map(i=>i.location));
-
   set.forEach(loc=>{
     if(loc){
       let opt=document.createElement("option");
@@ -264,14 +326,14 @@ function render(list){
     let img=i.image ? i.image : "https://via.placeholder.com/150?text=No+Image";
 
     return `
-    <tr onclick='showPreview(${JSON.stringify(JSON.stringify(i))})'>
-      <td><img class="table-img" src="${img}" onclick="event.stopPropagation();openPopup('${img}')"></td>
+    <tr>
+      <td><img class="table-img" src="${img}" onclick="openPopup('${img}')"></td>
       <td>${i.part}</td>
       <td>${i.location}</td>
       <td>${i.desc}</td>
       <td class="${stockLow?'stock-low':''}">${i.stock}</td>
-    </tr>
-    `;
+      <td><button class="details-btn" onclick="showDetails('${i.part}')">DETAILS</button></td>
+    </tr>`;
   }).join("");
 }
 
@@ -279,10 +341,10 @@ function filterData(){
   let val=searchInput.value.toLowerCase();
   let loc=locationFilter.value;
 
-  let filtered=data.filter(i=>
+  let filtered=data.filter(i =>
     (i.part.toLowerCase().includes(val) ||
-     i.desc.toLowerCase().includes(val) ||
-     i.location.toLowerCase().includes(val))
+    i.desc.toLowerCase().includes(val) ||
+    i.location.toLowerCase().includes(val))
     &&
     (loc==="" || i.location===loc)
   );
@@ -290,15 +352,57 @@ function filterData(){
   render(filtered);
 }
 
-function showPreview(item){
-  item=JSON.parse(item);
+function showDetails(part){
+  let item=data.find(x=>x.part===part);
+  if(!item) return;
 
-  document.getElementById("previewCard").style.display="flex";
-  document.getElementById("previewImg").src=item.image || "https://via.placeholder.com/300?text=No+Image";
-  document.getElementById("previewPart").innerText=item.part;
-  document.getElementById("previewDesc").innerText=item.desc;
-  document.getElementById("previewLoc").innerText="Location: "+item.location;
-  document.getElementById("previewStock").innerText="Stock: "+item.stock;
+  document.getElementById("detailsPopup").style.display="flex";
+
+  document.getElementById("detailInfo").innerHTML=`
+    <p><b>Model:</b> ${item.part}</p>
+    <p><b>Location:</b> ${item.location}</p>
+    <p><b>Description:</b> ${item.desc}</p>
+    <p><b>Total Stock:</b> ${item.stock}</p>
+    <p><b>Total Import:</b> ${item.totalImport}</p>
+    <p><b>Total Return:</b> ${item.totalReturn}</p>
+  `;
+
+  let salesHtml="<table class='history-table'><tr><th>Date</th><th>Client</th><th>Qty</th></tr>";
+
+  for(let i=10;i<=105;i+=3){
+    let date=item.raw[i];
+    let client=item.raw[i+1];
+    let qty=item.raw[i+2];
+
+    if(date || client || qty){
+      salesHtml += `<tr><td>${date||''}</td><td>${client||''}</td><td>${qty||''}</td></tr>`;
+    }
+  }
+
+  salesHtml+="</table>";
+  document.getElementById("salesHistory").innerHTML=salesHtml;
+
+  let returnRow=returnData.find(r=>r[0]===part);
+  let returnHtml="<table class='history-table'><tr><th>Date</th><th>Client</th><th>Qty</th></tr>";
+
+  if(returnRow){
+    for(let i=4;i<=99;i+=3){
+      let date=returnRow[i];
+      let client=returnRow[i+1];
+      let qty=returnRow[i+2];
+
+      if(date || client || qty){
+        returnHtml += `<tr><td>${date||''}</td><td>${client||''}</td><td>${qty||''}</td></tr>`;
+      }
+    }
+  }
+
+  returnHtml+="</table>";
+  document.getElementById("returnHistory").innerHTML=returnHtml;
+}
+
+function closeDetails(){
+  document.getElementById("detailsPopup").style.display="none";
 }
 
 function openPopup(src){
