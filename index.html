@@ -3,28 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Inventory System</title>
+<title>SFS Live Inventory</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
+*{box-sizing:border-box;}
 
 body{
   margin:0;
-  font-family:Inter;
-  background:#f3f6fb;
-  padding:25px;
+  font-family:Inter,sans-serif;
+  background:#eef3fa;
+  padding:20px;
 }
 
 .container{
-  max-width:1100px;
+  max-width:1300px;
   margin:auto;
-  background:white;
+  background:#fff;
   padding:25px;
-  border-radius:18px;
-  box-shadow:0 12px 30px rgba(0,0,0,0.08);
-  border-top:6px solid #1E4D9C;
+  border-radius:20px;
+  box-shadow:0 10px 35px rgba(0,0,0,.08);
 }
 
 h1{
@@ -36,231 +36,307 @@ h1{
 p{
   text-align:center;
   color:#666;
-  margin-top:0;
 }
 
-/* CONTROLS */
+.status{
+  text-align:center;
+  padding:12px;
+  border-radius:10px;
+  margin-bottom:20px;
+  font-weight:600;
+}
+
+.online{
+  background:#d4f8e8;
+  color:#087443;
+}
+
+.offline{
+  background:#ffdada;
+  color:#b10000;
+}
+
 .controls{
   display:flex;
   gap:10px;
-  margin-top:15px;
+  margin-bottom:20px;
 }
 
-input, select{
+input,select{
   width:100%;
   padding:14px;
-  font-size:15px;
-  border-radius:10px;
   border:2px solid #ddd;
+  border-radius:10px;
+  font-size:15px;
 }
 
-input:focus, select:focus{
-  outline:none;
-  border-color:#1E4D9C;
+.preview-card{
+  display:none;
+  background:#f7faff;
+  border:1px solid #dbe7ff;
+  border-radius:16px;
+  padding:20px;
+  margin-bottom:20px;
+  display:flex;
+  gap:20px;
+  align-items:center;
 }
 
-/* TABLE */
+.preview-card img{
+  width:180px;
+  height:180px;
+  object-fit:contain;
+  background:#fff;
+  border-radius:12px;
+  border:1px solid #ddd;
+}
+
+.preview-details h2{
+  margin:0 0 10px 0;
+  color:#1E4D9C;
+}
+
 table{
   width:100%;
   border-collapse:collapse;
-  margin-top:20px;
-  border-radius:12px;
-  overflow:hidden;
 }
 
 th{
   background:#1E4D9C;
   color:white;
   padding:14px;
-  font-size:13px;
 }
 
 td{
-  padding:12px;
   text-align:center;
+  padding:12px;
   border-bottom:1px solid #eee;
 }
 
 tr:hover{
-  background:#f6f9ff;
+  background:#f7fbff;
 }
 
-.part{
-  color:#1E4D9C;
-  font-weight:600;
-}
-
-/* IMAGE */
-img{
-  width:75px;
-  height:75px;
+.table-img{
+  width:80px;
+  height:80px;
   object-fit:cover;
   border-radius:10px;
   border:1px solid #ddd;
   cursor:pointer;
-  transition:0.2s;
 }
 
-img:hover{
-  transform:scale(1.08);
+.stock-low{
+  color:red;
+  font-weight:700;
 }
 
-/* POPUP */
 .popup{
   display:none;
   position:fixed;
-  top:0;
-  left:0;
-  width:100%;
-  height:100%;
-  background:rgba(0,0,0,0.85);
+  inset:0;
+  background:rgba(0,0,0,.92);
   justify-content:center;
   align-items:center;
+  flex-direction:column;
   z-index:9999;
 }
 
 .popup img{
-  max-width:95vw;
-  max-height:95vh;
+  max-width:85vw;
+  max-height:75vh;
   object-fit:contain;
-  background:white;
-  padding:10px;
-  border-radius:12px;
+  transition:.3s;
 }
 
-.stock{
-  font-weight:600;
+.zoom-controls{
+  margin-top:20px;
+  display:flex;
+  gap:10px;
 }
 
-.low{
-  color:red;
+.zoom-controls button{
+  padding:12px 18px;
+  border:none;
+  border-radius:8px;
+  background:#1E4D9C;
+  color:white;
+  cursor:pointer;
 }
-
 </style>
 </head>
-
 <body>
 
 <div class="container">
+  <h1>SFS LIVE INVENTORY</h1>
+  <p>Search Parts, View Stock & Images</p>
 
-<h1>LIVE INVENTORY SYSTEM</h1>
-<p>Search by Part, Location & View Stock Instantly</p>
+  <div id="statusBar" class="status">Connecting...</div>
 
-<div class="controls">
-  <input type="text" id="searchInput" placeholder="Search Part Number...">
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="Search Part Number...">
+    <select id="locationFilter">
+      <option value="">All Locations</option>
+    </select>
+  </div>
 
-  <select id="locationFilter">
-    <option value="">All Locations</option>
-  </select>
+  <div class="preview-card" id="previewCard">
+    <img id="previewImg">
+    <div class="preview-details">
+      <h2 id="previewPart"></h2>
+      <p id="previewDesc"></p>
+      <p id="previewLoc"></p>
+      <p id="previewStock"></p>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Image</th>
+        <th>Part</th>
+        <th>Location</th>
+        <th>Description</th>
+        <th>Stock</th>
+      </tr>
+    </thead>
+    <tbody id="body"></tbody>
+  </table>
 </div>
 
-<table>
-<thead>
-<tr>
-  <th>Image</th>
-  <th>Part No</th>
-  <th>Location</th>
-  <th>Description</th>
-  <th>Stock</th>
-</tr>
-</thead>
-
-<tbody id="body"></tbody>
-</table>
-
-</div>
-
-<!-- POPUP -->
-<div class="popup" id="popup" onclick="closePopup()">
+<div class="popup" id="popup">
   <img id="popupImg">
+  <div class="zoom-controls">
+    <button onclick="zoomIn()">+</button>
+    <button onclick="zoomOut()">-</button>
+    <button onclick="resetZoom()">Reset</button>
+    <button onclick="closePopup()">Close</button>
+  </div>
 </div>
 
 <script>
+const URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?output=csv";
+let data=[];
+let zoom=1;async function loadData(){
+  const status=document.getElementById("statusBar");
 
-const URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?output=csv";
+  try{
+    const res=await fetch(URL);
+    const txt=await res.text();
+    const rows=Papa.parse(txt).data;
 
-let data = [];
+    data=rows.slice(1).map(r=>({
+      part:r[0]||"",
+      location:r[1]||"",
+      desc:r[2]||"",
+      image:r[4]||"",
+      stock:r[6]||0
+    }));
 
-async function loadData(){
-  const res = await fetch(URL);
-  const txt = await res.text();
-  const rows = Papa.parse(txt).data;
+    status.className="status online";
+    status.innerHTML="System Online";
 
-  data = rows.slice(1).map(r => ({
-    part: r[0] || "",     // A
-    location: r[1] || "", // B
-    desc: r[2] || "",     // C
-    image: r[4] || "",    // E
-    stock: r[6] || 0      // G
-  }));
-
-  fillLocations();
-  render(data);
+    fillLocations();
+    render(data);
+  }catch(e){
+    status.className="status offline";
+    status.innerHTML="Connection Failed";
+  }
 }
 
 function fillLocations(){
-  let select = document.getElementById("locationFilter");
-  let set = new Set(data.map(i => i.location));
+  let select=document.getElementById("locationFilter");
+  let set=new Set(data.map(i=>i.location));
 
-  set.forEach(loc => {
+  set.forEach(loc=>{
     if(loc){
-      let opt = document.createElement("option");
-      opt.value = loc;
-      opt.textContent = loc;
+      let opt=document.createElement("option");
+      opt.value=loc;
+      opt.textContent=loc;
       select.appendChild(opt);
     }
   });
 }
 
 function render(list){
-  document.getElementById("body").innerHTML = list.map(i => {
-    let low = parseFloat(i.stock) <= 0;
+  document.getElementById("body").innerHTML=list.map(i=>{
+    let stockLow=parseFloat(i.stock)<=0;
+    let img=i.image ? i.image : "https://via.placeholder.com/150?text=No+Image";
 
     return `
-    <tr>
-      <td>
-        <img src="${i.image}" onclick="openPopup('${i.image}')">
-      </td>
-      <td class="part">${i.part}</td>
+    <tr onclick='showPreview(${JSON.stringify(JSON.stringify(i))})'>
+      <td><img class="table-img" src="${img}" onclick="event.stopPropagation();openPopup('${img}')"></td>
+      <td>${i.part}</td>
       <td>${i.location}</td>
       <td>${i.desc}</td>
-      <td class="stock ${low ? 'low' : ''}">${i.stock}</td>
+      <td class="${stockLow?'stock-low':''}">${i.stock}</td>
     </tr>
     `;
   }).join("");
 }
 
 function filterData(){
-  let val = searchInput.value.toLowerCase();
-  let loc = locationFilter.value;
+  let val=searchInput.value.toLowerCase();
+  let loc=locationFilter.value;
 
-  let filtered = data.filter(i =>
+  let filtered=data.filter(i=>
     (i.part.toLowerCase().includes(val) ||
      i.desc.toLowerCase().includes(val) ||
      i.location.toLowerCase().includes(val))
     &&
-    (loc === "" || i.location === loc)
+    (loc==="" || i.location===loc)
   );
 
   render(filtered);
 }
 
-searchInput.addEventListener("input", filterData);
-locationFilter.addEventListener("change", filterData);
+function showPreview(item){
+  item=JSON.parse(item);
 
-/* POPUP */
+  document.getElementById("previewCard").style.display="flex";
+  document.getElementById("previewImg").src=item.image || "https://via.placeholder.com/300?text=No+Image";
+  document.getElementById("previewPart").innerText=item.part;
+  document.getElementById("previewDesc").innerText=item.desc;
+  document.getElementById("previewLoc").innerText="Location: "+item.location;
+  document.getElementById("previewStock").innerText="Stock: "+item.stock;
+}
+
 function openPopup(src){
-  document.getElementById("popup").style.display = "flex";
-  document.getElementById("popupImg").src = src;
+  document.getElementById("popup").style.display="flex";
+  document.getElementById("popupImg").src=src;
+  zoom=1;
+  applyZoom();
 }
 
 function closePopup(){
-  document.getElementById("popup").style.display = "none";
+  document.getElementById("popup").style.display="none";
 }
 
+function zoomIn(){
+  zoom+=0.2;
+  applyZoom();
+}
+
+function zoomOut(){
+  if(zoom>0.4){
+    zoom-=0.2;
+    applyZoom();
+  }
+}
+
+function resetZoom(){
+  zoom=1;
+  applyZoom();
+}
+
+function applyZoom(){
+  document.getElementById("popupImg").style.transform=`scale(${zoom})`;
+}
+
+searchInput.addEventListener("input",filterData);
+locationFilter.addEventListener("change",filterData);
+
 loadData();
-
 </script>
-
 </body>
 </html>
