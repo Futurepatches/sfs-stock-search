@@ -382,6 +382,7 @@ document.getElementById("locationFilter").addEventListener("change", filterData)
   document.getElementById("detailsPopup").style.display = "flex";
 }
 
+/* IMPORT HISTORY FIXED */
 function renderImport(model){
   let row = importData.slice(1).find(r => r[0] === model);
 
@@ -390,15 +391,23 @@ function renderImport(model){
     return;
   }
 
-  let html = `<table class="history-table"><tr><th>Date</th><th>Import</th><th>Qty</th></tr>`;
+  let html = `
+  <table class="history-table">
+    <tr>
+      <th>Import Date</th>
+      <th>Qty</th>
+    </tr>`;
 
-  for(let i=4; i<=67; i+=3){
-    let date = row[i];
-    let qty = row[i+1];
-    let imp = row[i+2];
+  for(let i=4; i<row.length; i+=2){
+    let date = row[i] || "";
+    let qty = row[i+1] || "";
 
-    if(date || qty || imp){
-      html += `<tr><td>${date||""}</td><td>${imp||""}</td><td>${qty||""}</td></tr>`;
+    if(date || qty){
+      html += `
+      <tr>
+        <td>${date}</td>
+        <td>${qty}</td>
+      </tr>`;
     }
   }
 
@@ -406,16 +415,28 @@ function renderImport(model){
   document.getElementById("importHistory").innerHTML = html;
 }
 
+/* SALES HISTORY FIXED */
 function renderSales(row){
-  let html = `<table class="history-table"><tr><th>Date</th><th>Client</th><th>Qty</th></tr>`;
+  let html = `
+  <table class="history-table">
+    <tr>
+      <th>Date</th>
+      <th>Client</th>
+      <th>Qty</th>
+    </tr>`;
 
-  for(let i=10; i<=105; i+=3){
-    let date = row[i];
-    let client = row[i+1];
-    let qty = row[i+2];
+  for(let i=10; i<row.length; i+=3){
+    let date = row[i] || "";
+    let client = row[i+1] || "";
+    let qty = row[i+2] || "";
 
     if(date || client || qty){
-      html += `<tr><td>${date||""}</td><td>${client||""}</td><td>${qty||""}</td></tr>`;
+      html += `
+      <tr>
+        <td>${date}</td>
+        <td>${client}</td>
+        <td>${qty}</td>
+      </tr>`;
     }
   }
 
@@ -423,6 +444,7 @@ function renderSales(row){
   document.getElementById("salesHistory").innerHTML = html;
 }
 
+/* RETURN HISTORY */
 function renderReturns(model){
   let row = returnData.slice(1).find(r => r[0] === model);
 
@@ -431,15 +453,26 @@ function renderReturns(model){
     return;
   }
 
-  let html = `<table class="history-table"><tr><th>Date</th><th>Client</th><th>Qty</th></tr>`;
+  let html = `
+  <table class="history-table">
+    <tr>
+      <th>Date</th>
+      <th>Client</th>
+      <th>Qty</th>
+    </tr>`;
 
-  for(let i=4; i<=99; i+=3){
-    let date = row[i];
-    let client = row[i+1];
-    let qty = row[i+2];
+  for(let i=4; i<row.length; i+=3){
+    let date = row[i] || "";
+    let client = row[i+1] || "";
+    let qty = row[i+2] || "";
 
     if(date || client || qty){
-      html += `<tr><td>${date||""}</td><td>${client||""}</td><td>${qty||""}</td></tr>`;
+      html += `
+      <tr>
+        <td>${date}</td>
+        <td>${client}</td>
+        <td>${qty}</td>
+      </tr>`;
     }
   }
 
