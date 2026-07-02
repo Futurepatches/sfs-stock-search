@@ -3,97 +3,67 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SFS Live Inventory</title>
+<title>SFS Inventory System</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
-*{box-sizing:border-box;}
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
 
 body{
-  margin:0;
   font-family:Inter,sans-serif;
-  background:#eef3fa;
+  background:#f2f6fc;
   padding:20px;
 }
 
 .container{
-  max-width:1300px;
+  max-width:1400px;
   margin:auto;
   background:#fff;
-  padding:25px;
   border-radius:20px;
-  box-shadow:0 10px 35px rgba(0,0,0,.08);
+  box-shadow:0 12px 30px rgba(0,0,0,.08);
+  padding:25px;
 }
 
-h1{
+.header{
   text-align:center;
-  color:#1E4D9C;
-  margin-bottom:5px;
-}
-
-p{
-  text-align:center;
-  color:#666;
-}
-
-.status{
-  text-align:center;
-  padding:12px;
-  border-radius:10px;
   margin-bottom:20px;
-  font-weight:600;
 }
 
-.online{
-  background:#d4f8e8;
-  color:#087443;
+.header h1{
+  color:#1E4D9C;
+  font-size:34px;
 }
 
-.offline{
-  background:#ffdada;
-  color:#b10000;
+.header p{
+  color:#666;
+  margin-top:5px;
 }
 
 .controls{
   display:flex;
-  gap:10px;
+  gap:15px;
   margin-bottom:20px;
 }
 
-input,select{
+.controls input,
+.controls select{
   width:100%;
   padding:14px;
   border:2px solid #ddd;
-  border-radius:10px;
+  border-radius:12px;
   font-size:15px;
 }
 
-.preview-card{
-  display:none;
-  background:#f7faff;
-  border:1px solid #dbe7ff;
-  border-radius:16px;
-  padding:20px;
-  margin-bottom:20px;
-  display:flex;
-  gap:20px;
-  align-items:center;
-}
-
-.preview-card img{
-  width:180px;
-  height:180px;
-  object-fit:contain;
-  background:#fff;
-  border-radius:12px;
-  border:1px solid #ddd;
-}
-
-.preview-details h2{
-  margin:0 0 10px 0;
-  color:#1E4D9C;
+.controls input:focus,
+.controls select:focus{
+  outline:none;
+  border-color:#1E4D9C;
 }
 
 table{
@@ -103,240 +73,417 @@ table{
 
 th{
   background:#1E4D9C;
-  color:white;
+  color:#fff;
   padding:14px;
+  font-size:13px;
 }
 
 td{
-  text-align:center;
   padding:12px;
+  text-align:center;
   border-bottom:1px solid #eee;
 }
 
 tr:hover{
-  background:#f7fbff;
+  background:#f8fbff;
 }
 
-.table-img{
-  width:80px;
-  height:80px;
+.product-img{
+  width:75px;
+  height:75px;
   object-fit:cover;
   border-radius:10px;
+  cursor:pointer;
   border:1px solid #ddd;
+}
+
+.details-btn{
+  background:#1E4D9C;
+  color:#fff;
+  border:none;
+  padding:10px 16px;
+  border-radius:8px;
   cursor:pointer;
 }
 
-.stock-low{
+.details-btn:hover{
+  background:#163b77;
+}
+
+.low-stock{
   color:red;
   font-weight:700;
 }
 
-.popup{
+.popup,
+.details-popup{
   display:none;
   position:fixed;
   inset:0;
-  background:rgba(0,0,0,.92);
+  background:rgba(0,0,0,.85);
   justify-content:center;
   align-items:center;
-  flex-direction:column;
-  z-index:9999;
+  z-index:99999;
+}
+
+.popup-content{
+  text-align:center;
 }
 
 .popup img{
-  max-width:85vw;
-  max-height:75vh;
+  max-width:90vw;
+  max-height:80vh;
   object-fit:contain;
-  transition:.3s;
 }
 
 .zoom-controls{
   margin-top:20px;
   display:flex;
+  justify-content:center;
   gap:10px;
 }
 
 .zoom-controls button{
-  padding:12px 18px;
+  padding:12px 16px;
   border:none;
-  border-radius:8px;
   background:#1E4D9C;
-  color:white;
+  color:#fff;
+  border-radius:8px;
   cursor:pointer;
 }
-</style>
-</head>
+
+.details-box{
+  width:95%;
+  max-width:1200px;
+  max-height:90vh;
+  overflow:auto;
+  background:#fff;
+  border-radius:20px;
+  padding:25px;
+}
+
+.section-title{
+  color:#1E4D9C;
+  margin:20px 0 10px;
+}
+
+.history-table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+.history-table th{
+  background:#1E4D9C;
+  color:white;
+}
+
+.history-table td{
+  border:1px solid #ddd;
+}
+
+.close-btn{
+  background:red;
+  color:white;
+  border:none;
+  padding:10px 15px;
+  border-radius:8px;
+  cursor:pointer;
+}
+</style></head>
 <body>
 
 <div class="container">
-  <h1>SFS LIVE INVENTORY</h1>
-  <p>Search Parts, View Stock & Images</p>
 
-  <div id="statusBar" class="status">Connecting...</div>
+  <div class="header">
+    <h1>SFS LIVE INVENTORY</h1>
+    <p>Search Parts, Stock, Import & Return History</p>
+  </div>
 
   <div class="controls">
-    <input type="text" id="searchInput" placeholder="Search Part Number...">
+    <input type="text" id="searchInput" placeholder="Search model, location or description...">
+    
     <select id="locationFilter">
       <option value="">All Locations</option>
     </select>
-  </div>
-
-  <div class="preview-card" id="previewCard">
-    <img id="previewImg">
-    <div class="preview-details">
-      <h2 id="previewPart"></h2>
-      <p id="previewDesc"></p>
-      <p id="previewLoc"></p>
-      <p id="previewStock"></p>
-    </div>
   </div>
 
   <table>
     <thead>
       <tr>
         <th>Image</th>
-        <th>Part</th>
+        <th>Model</th>
         <th>Location</th>
         <th>Description</th>
         <th>Stock</th>
+        <th>Details</th>
       </tr>
     </thead>
-    <tbody id="body"></tbody>
+    <tbody id="tableBody"></tbody>
   </table>
+
 </div>
 
-<div class="popup" id="popup">
-  <img id="popupImg">
-  <div class="zoom-controls">
-    <button onclick="zoomIn()">+</button>
-    <button onclick="zoomOut()">-</button>
-    <button onclick="resetZoom()">Reset</button>
-    <button onclick="closePopup()">Close</button>
+<!-- IMAGE POPUP -->
+<div class="popup" id="imagePopup">
+  <div class="popup-content">
+    <img id="popupImage">
+
+    <div class="zoom-controls">
+      <button onclick="zoomIn()">+</button>
+      <button onclick="zoomOut()">-</button>
+      <button onclick="resetZoom()">Reset</button>
+      <button onclick="closePopup()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAILS POPUP -->
+<div class="details-popup" id="detailsPopup">
+  <div class="details-box">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h2 style="color:#1E4D9C;">Product Details</h2>
+      <button class="close-btn" onclick="closeDetails()">Close</button>
+    </div>
+
+    <div id="productInfo"></div>
+
+    <h3 class="section-title">Import History</h3>
+    <div id="importHistory"></div>
+
+    <h3 class="section-title">Sales History</h3>
+    <div id="salesHistory"></div>
+
+    <h3 class="section-title">Return History</h3>
+    <div id="returnHistory"></div>
+
   </div>
 </div>
 
 <script>
-const URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?output=csv";
-let data=[];
-let zoom=1;async function loadData(){
-  const status=document.getElementById("statusBar");
+const STOCK_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?gid=1719776219&single=true&output=csv";
+const IMPORT_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?gid=1389271409&single=true&output=csv";
+const RETURN_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSS4E1DvaV4RzuMHMENiroSR4WYZjT0usnqAgUwX-W44ADM-sB1Gz8lYNvK51-WP88BYi4lYLxwZaU3/pub?gid=1032386368&single=true&output=csv";
 
-  try{
-    const res=await fetch(URL);
-    const txt=await res.text();
-    const rows=Papa.parse(txt).data;
+let stockData = [];
+let importData = [];
+let returnData = [];
+let zoomLevel = 1;async function loadAllData() {
+  try {
+    const stockRes = await fetch(STOCK_URL);
+    const stockText = await stockRes.text();
+    stockData = Papa.parse(stockText).data;
 
-    data=rows.slice(1).map(r=>({
-      part:r[0]||"",
-      location:r[1]||"",
-      desc:r[2]||"",
-      image:r[4]||"",
-      stock:r[6]||0
-    }));
+    const importRes = await fetch(IMPORT_URL);
+    const importText = await importRes.text();
+    importData = Papa.parse(importText).data;
 
-    status.className="status online";
-    status.innerHTML="System Online";
+    const returnRes = await fetch(RETURN_URL);
+    const returnText = await returnRes.text();
+    returnData = Papa.parse(returnText).data;
 
     fillLocations();
-    render(data);
-  }catch(e){
-    status.className="status offline";
-    status.innerHTML="Connection Failed";
+    renderTable();
+
+  } catch (error) {
+    alert("Connection Failed");
+    console.error(error);
   }
 }
 
 function fillLocations(){
-  let select=document.getElementById("locationFilter");
-  let set=new Set(data.map(i=>i.location));
+  const filter = document.getElementById("locationFilter");
+  let locations = [...new Set(stockData.slice(1).map(row => row[1]).filter(Boolean))];
 
-  set.forEach(loc=>{
-    if(loc){
-      let opt=document.createElement("option");
-      opt.value=loc;
-      opt.textContent=loc;
-      select.appendChild(opt);
-    }
+  locations.forEach(loc => {
+    let option = document.createElement("option");
+    option.value = loc;
+    option.textContent = loc;
+    filter.appendChild(option);
   });
 }
 
-function render(list){
-  document.getElementById("body").innerHTML=list.map(i=>{
-    let stockLow=parseFloat(i.stock)<=0;
-    let img=i.image ? i.image : "https://via.placeholder.com/150?text=No+Image";
+function renderTable(data = stockData.slice(1)){
+  const body = document.getElementById("tableBody");
+
+  body.innerHTML = data.map(row => {
+    const model = row[0] || "";
+    const location = row[1] || "";
+    const description = row[2] || "";
+    const image = row[4] || "";
+    const stock = row[6] || "0";
 
     return `
-    <tr onclick='showPreview(${JSON.stringify(JSON.stringify(i))})'>
-      <td><img class="table-img" src="${img}" onclick="event.stopPropagation();openPopup('${img}')"></td>
-      <td>${i.part}</td>
-      <td>${i.location}</td>
-      <td>${i.desc}</td>
-      <td class="${stockLow?'stock-low':''}">${i.stock}</td>
-    </tr>
+      <tr>
+        <td>
+          ${image ? `<img src="${image}" class="product-img" onclick="openPopup('${image}')">` : 'No Image'}
+        </td>
+        <td>${model}</td>
+        <td>${location}</td>
+        <td>${description}</td>
+        <td class="${parseFloat(stock)<=0 ? 'low-stock' : ''}">${stock}</td>
+        <td>
+          <button class="details-btn" onclick="showDetails('${model}')">Details</button>
+        </td>
+      </tr>
     `;
   }).join("");
 }
 
 function filterData(){
-  let val=searchInput.value.toLowerCase();
-  let loc=locationFilter.value;
+  const search = document.getElementById("searchInput").value.toLowerCase();
+  const location = document.getElementById("locationFilter").value;
 
-  let filtered=data.filter(i=>
-    (i.part.toLowerCase().includes(val) ||
-     i.desc.toLowerCase().includes(val) ||
-     i.location.toLowerCase().includes(val))
-    &&
-    (loc==="" || i.location===loc)
-  );
+  const filtered = stockData.slice(1).filter(row => {
+    const model = (row[0] || "").toLowerCase();
+    const loc = (row[1] || "").toLowerCase();
+    const desc = (row[2] || "").toLowerCase();
 
-  render(filtered);
+    const searchMatch =
+      model.includes(search) ||
+      loc.includes(search) ||
+      desc.includes(search);
+
+    const locationMatch = !location || row[1] === location;
+
+    return searchMatch && locationMatch;
+  });
+
+  renderTable(filtered);
 }
 
-function showPreview(item){
-  item=JSON.parse(item);
+document.getElementById("searchInput").addEventListener("input", filterData);
+document.getElementById("locationFilter").addEventListener("change", filterData);function showDetails(model){
+  const row = stockData.slice(1).find(r => r[0] === model);
+  if(!row) return;
 
-  document.getElementById("previewCard").style.display="flex";
-  document.getElementById("previewImg").src=item.image || "https://via.placeholder.com/300?text=No+Image";
-  document.getElementById("previewPart").innerText=item.part;
-  document.getElementById("previewDesc").innerText=item.desc;
-  document.getElementById("previewLoc").innerText="Location: "+item.location;
-  document.getElementById("previewStock").innerText="Stock: "+item.stock;
+  const modelName = row[0] || "";
+  const location = row[1] || "";
+  const desc = row[2] || "";
+  const image = row[4] || "";
+  const stock = row[6] || "0";
+  const totalImport = row[8] || "0";
+  const totalReturn = row[9] || "0";
+
+  document.getElementById("productInfo").innerHTML = `
+    <p><b>Model:</b> ${modelName}</p>
+    <p><b>Location:</b> ${location}</p>
+    <p><b>Description:</b> ${desc}</p>
+    <p><b>Stock:</b> ${stock}</p>
+    <p><b>Total Import:</b> ${totalImport}</p>
+    <p><b>Total Return:</b> ${totalReturn}</p>
+    ${image ? `<img src="${image}" style="width:150px;margin-top:10px;border-radius:12px;">` : ""}
+  `;
+
+  renderImport(model);
+  renderSales(row);
+  renderReturns(model);
+
+  document.getElementById("detailsPopup").style.display = "flex";
+}
+
+function renderImport(model){
+  let row = importData.slice(1).find(r => r[0] === model);
+
+  if(!row){
+    document.getElementById("importHistory").innerHTML = "No Import Data";
+    return;
+  }
+
+  let html = `<table class="history-table"><tr><th>Date</th><th>Import</th><th>Qty</th></tr>`;
+
+  for(let i=4; i<=67; i+=3){
+    let date = row[i];
+    let qty = row[i+1];
+    let imp = row[i+2];
+
+    if(date || qty || imp){
+      html += `<tr><td>${date||""}</td><td>${imp||""}</td><td>${qty||""}</td></tr>`;
+    }
+  }
+
+  html += "</table>";
+  document.getElementById("importHistory").innerHTML = html;
+}
+
+function renderSales(row){
+  let html = `<table class="history-table"><tr><th>Date</th><th>Client</th><th>Qty</th></tr>`;
+
+  for(let i=10; i<=105; i+=3){
+    let date = row[i];
+    let client = row[i+1];
+    let qty = row[i+2];
+
+    if(date || client || qty){
+      html += `<tr><td>${date||""}</td><td>${client||""}</td><td>${qty||""}</td></tr>`;
+    }
+  }
+
+  html += "</table>";
+  document.getElementById("salesHistory").innerHTML = html;
+}
+
+function renderReturns(model){
+  let row = returnData.slice(1).find(r => r[0] === model);
+
+  if(!row){
+    document.getElementById("returnHistory").innerHTML = "No Return Data";
+    return;
+  }
+
+  let html = `<table class="history-table"><tr><th>Date</th><th>Client</th><th>Qty</th></tr>`;
+
+  for(let i=4; i<=99; i+=3){
+    let date = row[i];
+    let client = row[i+1];
+    let qty = row[i+2];
+
+    if(date || client || qty){
+      html += `<tr><td>${date||""}</td><td>${client||""}</td><td>${qty||""}</td></tr>`;
+    }
+  }
+
+  html += "</table>";
+  document.getElementById("returnHistory").innerHTML = html;
+}
+
+function closeDetails(){
+  document.getElementById("detailsPopup").style.display = "none";
 }
 
 function openPopup(src){
-  document.getElementById("popup").style.display="flex";
-  document.getElementById("popupImg").src=src;
-  zoom=1;
+  document.getElementById("imagePopup").style.display = "flex";
+  document.getElementById("popupImage").src = src;
+  zoomLevel = 1;
   applyZoom();
 }
 
 function closePopup(){
-  document.getElementById("popup").style.display="none";
+  document.getElementById("imagePopup").style.display = "none";
 }
 
 function zoomIn(){
-  zoom+=0.2;
+  zoomLevel += 0.2;
   applyZoom();
 }
 
 function zoomOut(){
-  if(zoom>0.4){
-    zoom-=0.2;
+  if(zoomLevel > 0.4){
+    zoomLevel -= 0.2;
     applyZoom();
   }
 }
 
 function resetZoom(){
-  zoom=1;
+  zoomLevel = 1;
   applyZoom();
 }
 
 function applyZoom(){
-  document.getElementById("popupImg").style.transform=`scale(${zoom})`;
+  document.getElementById("popupImage").style.transform = `scale(${zoomLevel})`;
 }
 
-searchInput.addEventListener("input",filterData);
-locationFilter.addEventListener("change",filterData);
-
-loadData();
+loadAllData();
 </script>
 </body>
 </html>
